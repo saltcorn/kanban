@@ -4,7 +4,16 @@ const Form = require("saltcorn-data/models/form");
 const View = require("saltcorn-data/models/view");
 const Workflow = require("saltcorn-data/models/workflow");
 
-const { text, div, h3, style, a, script, domReady } = require("saltcorn-markup/tags");
+const {
+  text,
+  div,
+  h3,
+  style,
+  a,
+  script,
+  pre,
+  domReady
+} = require("saltcorn-markup/tags");
 
 const configuration_workflow = () =>
   new Workflow({
@@ -117,9 +126,18 @@ const css = `
   }
 `;
 
-const js = `
+const js = (table, column_field) => `
   var els=document.querySelectorAll('.kancontainer')
-  dragula(Array.from(els))
+  dragula(Array.from(els)).on('drop', function (el,target) {
+    var dataObj={ id: $(el).attr('data-id')}
+    dataObj.${column_field}=$(target).attr('data-column-value')
+    $.ajax('/edit/${table}', {
+      contentType: "application/x-www-form-urlencoded",
+      type: 'POST',
+      data: dataObj
+    });
+   
+  })
 `;
 
 const run = async (
@@ -129,6 +147,7 @@ const run = async (
   state,
   extraArgs
 ) => {
+  const table = await Table.findOne({ id: table_id });
   const sview = await View.findOne({ name: show_view });
   const sresps = await sview.runMany(state, extraArgs);
   var cols = groupBy(sresps, ({ row }) => row[column_field]);
@@ -136,17 +155,21 @@ const run = async (
     div(
       { class: "kancol" },
       h3(text(k)),
-      div({ class: "kancontainer" }, vs.map(({ row, html }) =>
-        div(
-          {
-            class: "kancard",
-            ...(expand_view && {
-              onClick: `href_to('/view/${expand_view}?id=${row.id}')`
-            })
-          },
-          html
+      div(
+        { class: "kancontainer", "data-column-value": text(k) },
+        vs.map(({ row, html }) =>
+          div(
+            {
+              class: "kancard",
+              "data-id": text(row.id),
+              ...(expand_view && {
+                onClick: `href_to('/view/${expand_view}?id=${row.id}')`
+              })
+            },
+            html
+          )
         )
-      )),
+      ),
       view_to_create &&
         a(
           { href: `/view/${view_to_create}?${column_field}=${k}` },
@@ -154,13 +177,24 @@ const run = async (
         )
     )
   );
-  return div({ class: "d-flex" }, col_divs) + style(css) + script(domReady(js));
+  return (
+    div({ class: "d-flex" }, col_divs) +
+    //pre(JSON.stringify({table, name:table.name}))+
+    style(css) +
+    script(domReady(js(table.name, column_field)))
+  );
 };
 
 module.exports = {
   headers: [
-    { script: "https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.js" },
-    { css: "https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.css" }
+    {
+      script:
+        "https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.js"
+    },
+    {
+      css:
+        "https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.css"
+    }
   ],
   viewtemplates: [
     {
