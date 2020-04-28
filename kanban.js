@@ -135,8 +135,21 @@ const js = (table, column_field) => `
       contentType: "application/x-www-form-urlencoded",
       type: 'POST',
       data: dataObj
-    });
-   
+    });   
+  })
+  var getColumnValues=function() {
+    var vs = []
+    $('.kancontainer').each(function(){
+      vs.push($(this).attr('data-column-value'))
+    })
+    console.log(vs)
+    return vs
+  }
+  getColumnValues()
+  
+  var els=document.querySelectorAll('.kanboard')
+  dragula(Array.from(els)).on('drop', function () {
+    setTimeout(getColumnValues, 0)
   })
 `;
 
@@ -178,7 +191,7 @@ const run = async (
     )
   );
   return (
-    div({ class: "d-flex" }, col_divs) +
+    div({ class: "d-flex kanboard" }, col_divs) +
     //pre(JSON.stringify({table, name:table.name}))+
     style(css) +
     script(domReady(js(table.name, column_field)))
