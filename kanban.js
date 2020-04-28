@@ -12,7 +12,6 @@ const configuration_workflow = () =>
       {
         name: "views",
         form: async context => {
-
           const table = await Table.findOne({ id: context.table_id });
           const fields = await table.getFields();
 
@@ -22,6 +21,13 @@ const configuration_workflow = () =>
               viewtemplate.runMany && viewrow.name !== context.viewname
           );
           const show_view_opts = show_views.map(v => v.name);
+
+          const expand_views = await View.find_table_views_where(
+            context.table_id,
+            ({ state_fields, viewtemplate, viewrow }) =>
+              viewrow.name !== context.viewname
+          );
+          const expand_view_opts = expand_views.map(v => v.name);
 
           const create_views = await View.find_table_views_where(
             context.table_id,
@@ -40,6 +46,15 @@ const configuration_workflow = () =>
                 required: true,
                 attributes: {
                   options: show_view_opts.join()
+                }
+              },
+              {
+                name: "expand_view",
+                label: "Expand View",
+                type: "String",
+                required: false,
+                attributes: {
+                  options: expand_view_opts.join()
                 }
               },
               {
@@ -100,12 +115,12 @@ const css = `
     padding:2px;
     margin:2px;
   }
-`
+`;
 
 const run = async (
   table_id,
   viewname,
-  { show_view, column_field, view_to_create },
+  { show_view, column_field, view_to_create, expand_view },
   state,
   extraArgs
 ) => {
@@ -116,14 +131,25 @@ const run = async (
     div(
       { class: "kancol" },
       h3(text(k)),
-      vs.map(({ row, html }) => div({ class: "kancard" }, html)),
-      view_to_create && a({href: `/view/${view_to_create}?${column_field}=${k}` }, "Add new card")
+      vs.map(({ row, html }) =>
+        div(
+          {
+            class: "kancard",
+            ...(expand_view && {
+              onClick: `href_to('/view/${expand_view}?id=${row.id}')`
+            })
+          },
+          html
+        )
+      ),
+      view_to_create &&
+        a(
+          { href: `/view/${view_to_create}?${column_field}=${k}` },
+          "Add new card"
+        )
     )
   );
-  return (
-    div({ class: "d-flex" }, col_divs) +
-    style(css)
-  );
+  return div({ class: "d-flex" }, col_divs) + style(css);
 };
 
 module.exports = {
