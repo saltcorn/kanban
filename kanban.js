@@ -4,7 +4,7 @@ const Form = require("saltcorn-data/models/form");
 const View = require("saltcorn-data/models/view");
 const Workflow = require("saltcorn-data/models/workflow");
 
-const { text, div, h3, style, a } = require("saltcorn-markup/tags");
+const { text, div, h3, style, a, script } = require("saltcorn-markup/tags");
 
 const configuration_workflow = () =>
   new Workflow({
@@ -153,6 +153,9 @@ const run = async (
 };
 
 module.exports = {
+  headers: script({
+    src: "https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"
+  }),
   viewtemplates: [
     {
       name: "Kanban",
