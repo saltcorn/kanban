@@ -4,7 +4,7 @@ const Form = require("saltcorn-data/models/form");
 const View = require("saltcorn-data/models/view");
 const Workflow = require("saltcorn-data/models/workflow");
 
-const { text, div, h3, style, a, script } = require("saltcorn-markup/tags");
+const { text, div, h3, style, a, script, domReady } = require("saltcorn-markup/tags");
 
 const configuration_workflow = () =>
   new Workflow({
@@ -117,6 +117,11 @@ const css = `
   }
 `;
 
+const js = `
+  var els=document.querySelectorAll('.kancontainer')
+  dragula(Array.from(els))
+`;
+
 const run = async (
   table_id,
   viewname,
@@ -131,7 +136,7 @@ const run = async (
     div(
       { class: "kancol" },
       h3(text(k)),
-      vs.map(({ row, html }) =>
+      div({ class: "kancontainer" }, vs.map(({ row, html }) =>
         div(
           {
             class: "kancard",
@@ -141,7 +146,7 @@ const run = async (
           },
           html
         )
-      ),
+      )),
       view_to_create &&
         a(
           { href: `/view/${view_to_create}?${column_field}=${k}` },
@@ -149,13 +154,14 @@ const run = async (
         )
     )
   );
-  return div({ class: "d-flex" }, col_divs) + style(css);
+  return div({ class: "d-flex" }, col_divs) + style(css) + script(domReady(js));
 };
 
 module.exports = {
-  headers: script({
-    src: "https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"
-  }),
+  headers: [
+    { script: "https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.js" },
+    { css: "https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.css" }
+  ],
   viewtemplates: [
     {
       name: "Kanban",
