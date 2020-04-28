@@ -4,7 +4,7 @@ const Form = require("saltcorn-data/models/form");
 const View = require("saltcorn-data/models/view");
 const Workflow = require("saltcorn-data/models/workflow");
 
-const { text, div, h3, style } = require("saltcorn-markup/tags");
+const { text, div, h3, style, a } = require("saltcorn-markup/tags");
 
 const configuration_workflow = () =>
   new Workflow({
@@ -12,7 +12,6 @@ const configuration_workflow = () =>
       {
         name: "views",
         form: async context => {
-          console.log({ context });
 
           const table = await Table.findOne({ id: context.table_id });
           const fields = await table.getFields();
@@ -23,9 +22,16 @@ const configuration_workflow = () =>
               viewtemplate.runMany && viewrow.name !== context.viewname
           );
           const show_view_opts = show_views.map(v => v.name);
-          console.log({ show_views });
+
+          const create_views = await View.find_table_views_where(
+            context.table_id,
+            ({ state_fields, viewrow }) =>
+              viewrow.name !== context.viewname &&
+              state_fields.every(sf => !sf.required)
+          );
+          const create_view_opts = create_views.map(v => v.name);
+
           return new Form({
-            blurb: JSON.stringify(show_views),
             fields: [
               {
                 name: "show_view",
@@ -43,6 +49,15 @@ const configuration_workflow = () =>
                 required: true,
                 attributes: {
                   options: fields.map(f => f.name).join()
+                }
+              },
+              {
+                name: "view_to_create",
+                label: "Use view to create",
+                sublabel: "Leave blank to have no link to create a new item",
+                type: "String",
+                attributes: {
+                  options: create_view_opts.join()
                 }
               }
             ]
@@ -76,10 +91,21 @@ function groupBy(list, keyGetter) {
   return map;
 }
 
+const css = `
+  .kancol { 
+    border: 1px solid black;
+    padding:2px ; margin:2px;
+  }
+  .kancard { border: 1px solid blue;  
+    padding:2px;
+    margin:2px;
+  }
+`
+
 const run = async (
   table_id,
   viewname,
-  { show_view, column_field },
+  { show_view, column_field, view_to_create },
   state,
   extraArgs
 ) => {
@@ -90,20 +116,13 @@ const run = async (
     div(
       { class: "kancol" },
       h3(text(k)),
-      vs.map(({ row, html }) => div({ class: "kancard" }, html))
+      vs.map(({ row, html }) => div({ class: "kancard" }, html)),
+      view_to_create && a({href: `/view/${view_to_create}?${column_field}=${k}` }, "Add new card")
     )
   );
   return (
     div({ class: "d-flex" }, col_divs) +
-    style(`
-         .kancol { border: 1px solid black;
-                   padding:2px ; margin:2px;
-                  }
-         .kancard { border: 1px solid blue;  
-                    padding:2px;
-                    margin:2px;
-                  }
-         `)
+    style(css)
   );
 };
 
