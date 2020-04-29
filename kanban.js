@@ -161,8 +161,10 @@ const js = (table, column_field,viewname) => `
     setTimeout(reportColumnValues, 0)
   })
   var els=document.querySelectorAll('.kancontainer')
-  dragula(Array.from(els)).on('drop', function (el,target) {
-    var dataObj={ id: $(el).attr('data-id')}
+  dragula(Array.from(els)).on('drop', function (el,target, src,before) {
+    console.log(before)
+    var dataObj={ id: $(el).attr('data-id'),
+                  before_id: before ? $(before).attr('data-id') : null }
     dataObj.${column_field}=$(target).attr('data-column-value')
     view_post('${viewname}', 'set_card_value', dataObj);
   })
