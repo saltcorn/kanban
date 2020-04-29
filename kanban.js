@@ -150,13 +150,7 @@ const js = (table, column_field,viewname) => `
   }
   
   var reportColumnValues=function(){
-    var vs =getColumnValues();
-    $.ajax('/view/${viewname}/set_col_order', {
-      dataType: 'json',
-      type: 'POST',
-      contentType: 'application/json',
-      data: JSON.stringify(vs), 
-    });  
+    view_post('${viewname}', 'set_col_order', getColumnValues());
   }
   var els=document.querySelectorAll('.kanboard')
   dragula(Array.from(els), {
@@ -170,12 +164,7 @@ const js = (table, column_field,viewname) => `
   dragula(Array.from(els)).on('drop', function (el,target) {
     var dataObj={ id: $(el).attr('data-id')}
     dataObj.${column_field}=$(target).attr('data-column-value')
-    $.ajax('/view/${viewname}/set_card_value', {
-      dataType: 'json',
-      type: 'POST',
-      contentType: 'application/json',
-      data: JSON.stringify(dataObj), 
-    });   
+    view_post('${viewname}', 'set_card_value', dataObj);
   })
 `;
 
