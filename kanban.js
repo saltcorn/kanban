@@ -115,6 +115,19 @@ function groupBy(list, keyGetter) {
   return map;
 }
 
+const orderedEntries=(obj, keyList)=>{
+  var entries=[]
+  keyList.forEach(k=>{
+    if(typeof obj[k]!==undefined)
+      entries.push([k,obj[k]])
+  })
+  Object.entries(obj).forEach(([k,v])=>{
+    if(!keyList.includes(k))
+    entries.push([k,v])
+  })
+  return entries
+}
+
 const css = `
   .kancol { 
     border: 1px solid black;
@@ -133,15 +146,26 @@ const js = (table, column_field,viewname) => `
     $('.kancontainer').each(function(){
       vs.push($(this).attr('data-column-value'))
     })
-    console.log(vs)
     return vs
   }
-  getColumnValues()
   
-  /*var els=document.querySelectorAll('.kanboard')
-  dragula(Array.from(els)).on('drop', function () {
-    setTimeout(getColumnValues, 0)
-  })*/
+  var reportColumnValues=function(){
+    var vs =getColumnValues();
+    $.ajax('/view/${viewname}/set_col_order', {
+      dataType: 'json',
+      type: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify(vs), 
+    });  
+  }
+  var els=document.querySelectorAll('.kanboard')
+  dragula(Array.from(els), {
+    moves: function(el, container, handle) {
+      return $(handle).closest('.kancard').length==0;
+    }
+  }).on('drop', function () {
+    setTimeout(reportColumnValues, 0)
+  })
   var els=document.querySelectorAll('.kancontainer')
   dragula(Array.from(els)).on('drop', function (el,target) {
     var dataObj={ id: $(el).attr('data-id')}
@@ -158,7 +182,7 @@ const js = (table, column_field,viewname) => `
 const run = async (
   table_id,
   viewname,
-  { show_view, column_field, view_to_create, expand_view },
+  { show_view, column_field, view_to_create, expand_view, column_order },
   state,
   extraArgs
 ) => {
@@ -166,7 +190,7 @@ const run = async (
   const sview = await View.findOne({ name: show_view });
   const sresps = await sview.runMany(state, extraArgs);
   var cols = groupBy(sresps, ({ row }) => row[column_field]);
-  const col_divs = Object.entries(cols).map(([k, vs]) =>
+  const col_divs = orderedEntries(cols, column_order||[]).map(([k, vs]) =>
     div(
       { class: "kancol" },
       h3(text(k)),
@@ -219,11 +243,10 @@ const set_col_order = async (
   config,
   body
 ) => {
-  const table = await Table.findOne({ id: table_id });
   const view = await View.findOne({name: viewname})
-  view.configuration = {...config, column_order: body}
-  await View.update(view, view.id);
-  return {json: {success: "ok"}}
+  const newConfig={configuration: {...view.configuration, column_order: body}}
+  await View.update(newConfig, view.id);
+  return {json: {success: "ok", newconfig: newConfig}}
 }
 module.exports = {
   headers: [
