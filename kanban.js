@@ -126,17 +126,8 @@ const css = `
   }
 `;
 
-const js = (table, column_field) => `
-  var els=document.querySelectorAll('.kancontainer')
-  dragula(Array.from(els)).on('drop', function (el,target) {
-    var dataObj={ id: $(el).attr('data-id')}
-    dataObj.${column_field}=$(target).attr('data-column-value')
-    $.ajax('/edit/${table}', {
-      contentType: "application/x-www-form-urlencoded",
-      type: 'POST',
-      data: dataObj
-    });   
-  })
+const js = (table, column_field,viewname) => `
+
   var getColumnValues=function() {
     var vs = []
     $('.kancontainer').each(function(){
@@ -147,9 +138,20 @@ const js = (table, column_field) => `
   }
   getColumnValues()
   
-  var els=document.querySelectorAll('.kanboard')
+  /*var els=document.querySelectorAll('.kanboard')
   dragula(Array.from(els)).on('drop', function () {
     setTimeout(getColumnValues, 0)
+  })*/
+  var els=document.querySelectorAll('.kancontainer')
+  dragula(Array.from(els)).on('drop', function (el,target) {
+    var dataObj={ id: $(el).attr('data-id')}
+    dataObj.${column_field}=$(target).attr('data-column-value')
+    $.ajax('/view/${viewname}/set_card_value', {
+      dataType: 'json',
+      type: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify(dataObj), 
+    });   
   })
 `;
 
@@ -194,10 +196,35 @@ const run = async (
     div({ class: "d-flex kanboard" }, col_divs) +
     //pre(JSON.stringify({table, name:table.name}))+
     style(css) +
-    script(domReady(js(table.name, column_field)))
+    script(domReady(js(table.name, column_field, viewname)))
   );
 };
 
+//card has been dragged btw columns
+const set_card_value  = async (
+  table_id,
+  viewname,
+  { column_field },
+  body
+) => {
+  const table = await Table.findOne({ id: table_id });
+  await table.updateRow({[column_field]: body[column_field]}, parseInt(body.id))
+  return {json: {success: "ok"}}
+}
+
+//whole column has been moved
+const set_col_order = async (
+  table_id,
+  viewname,
+  config,
+  body
+) => {
+  const table = await Table.findOne({ id: table_id });
+  const view = await View.findOne({name: viewname})
+  view.configuration = {...config, column_order: body}
+  await View.update(view, view.id);
+  return {json: {success: "ok"}}
+}
 module.exports = {
   headers: [
     {
@@ -215,7 +242,8 @@ module.exports = {
       display_state_form: false,
       get_state_fields,
       configuration_workflow,
-      run
+      run,
+      routes: {set_col_order, set_card_value}
     }
   ]
 };
