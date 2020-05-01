@@ -76,6 +76,20 @@ const configuration_workflow = () =>
                 }
               },
               {
+                name: "position_field",
+                label: "Positions field",
+                type: "String",
+                blurb:
+                  "The table need a fields of type 'Float' to track positions within each column. If you do not select or do not have a position field, the position within each column cannot be stored.",
+                required: false,
+                attributes: {
+                  options: fields
+                    .filter(f => f.type.name === "Float")
+                    .map(f => f.name)
+                    .join()
+                }
+              },
+              {
                 name: "view_to_create",
                 label: "Use view to create",
                 sublabel: "Leave blank to have no link to create a new item",
@@ -115,18 +129,16 @@ function groupBy(list, keyGetter) {
   return map;
 }
 
-const orderedEntries=(obj, keyList)=>{
-  var entries=[]
-  keyList.forEach(k=>{
-    if(typeof obj[k]!==undefined)
-      entries.push([k,obj[k]])
-  })
-  Object.entries(obj).forEach(([k,v])=>{
-    if(!keyList.includes(k))
-    entries.push([k,v])
-  })
-  return entries
-}
+const orderedEntries = (obj, keyList) => {
+  var entries = [];
+  keyList.forEach(k => {
+    if (typeof obj[k] !== undefined) entries.push([k, obj[k]]);
+  });
+  Object.entries(obj).forEach(([k, v]) => {
+    if (!keyList.includes(k)) entries.push([k, v]);
+  });
+  return entries;
+};
 
 const css = `
   .kancol { 
@@ -139,7 +151,7 @@ const css = `
   }
 `;
 
-const js = (table, column_field,viewname) => `
+const js = (table, column_field, viewname) => `
 
   var getColumnValues=function() {
     var vs = []
@@ -170,24 +182,50 @@ const js = (table, column_field,viewname) => `
   })
 `;
 
+const assign_random_positions = async (rows, position_field, table_id) => {
+  var table;
+  for (const { row } of rows) {
+    if (
+      typeof row[position_field] === "undefined" ||
+      row[position_field] === null
+    ) {
+      row[position_field] = Math.random();
+      if (!table) table = await Table.findOne({ id: table_id });
+      await table.updateRow({ [position_field]: row[position_field] }, row.id);
+    }
+  }
+};
+
 const run = async (
   table_id,
   viewname,
-  { show_view, column_field, view_to_create, expand_view, column_order },
+  {
+    show_view,
+    column_field,
+    view_to_create,
+    expand_view,
+    column_order,
+    position_field
+  },
   state,
   extraArgs
 ) => {
   const table = await Table.findOne({ id: table_id });
   const sview = await View.findOne({ name: show_view });
   const sresps = await sview.runMany(state, extraArgs);
+  if (position_field)
+    await assign_random_positions(sresps, position_field, table_id);
   var cols = groupBy(sresps, ({ row }) => row[column_field]);
-  const col_divs = orderedEntries(cols, column_order||[]).map(([k, vs]) =>
+  const sortCol = position_field
+    ? vs => vs.sort((a, b) => a.row[position_field] - b.row[position_field])
+    : vs => vs;
+  const col_divs = orderedEntries(cols, column_order || []).map(([k, vs]) =>
     div(
       { class: "kancol" },
       h3(text(k)),
       div(
         { class: "kancontainer", "data-column-value": text(k) },
-        vs.map(({ row, html }) =>
+        sortCol(vs || []).map(({ row, html }) =>
           div(
             {
               class: "kancard",
@@ -216,29 +254,47 @@ const run = async (
 };
 
 //card has been dragged btw columns
-const set_card_value  = async (
+const set_card_value = async (
   table_id,
   viewname,
-  { column_field },
+  { column_field, position_field },
   body
 ) => {
   const table = await Table.findOne({ id: table_id });
-  await table.updateRow({[column_field]: body[column_field]}, parseInt(body.id))
-  return {json: {success: "ok"}}
-}
+  var newpos;
+  const exrows = await table.getRows(
+    { [column_field]: body[column_field] },
+    { orderBy: position_field }
+  );
+  const before_id = parseInt(body.before_id);
+  if (before_id) {
+    const before_ix = exrows.findIndex(row => row.id === before_id);
+    if (before_ix === 0) newpos = exrows[0][position_field] - 1;
+    else
+      newpos =
+        (exrows[before_ix - 1][position_field] +
+          exrows[before_ix][position_field]) /
+        2;
+  } else {
+    newpos = exrows[exrows.length - 1][position_field] + 1;
+  }
+
+  await table.updateRow(
+    { [column_field]: body[column_field], [position_field]: newpos },
+    parseInt(body.id)
+  );
+  return { json: { success: "ok", exrows } };
+};
 
 //whole column has been moved
-const set_col_order = async (
-  table_id,
-  viewname,
-  config,
-  body
-) => {
-  const view = await View.findOne({name: viewname})
-  const newConfig={configuration: {...view.configuration, column_order: body}}
+const set_col_order = async (table_id, viewname, config, body) => {
+  const view = await View.findOne({ name: viewname });
+  const newConfig = {
+    configuration: { ...view.configuration, column_order: body }
+  };
   await View.update(newConfig, view.id);
-  return {json: {success: "ok", newconfig: newConfig}}
-}
+  return { json: { success: "ok", newconfig: newConfig } };
+};
 module.exports = {
   headers: [
     {
@@ -257,7 +313,7 @@ module.exports = {
       get_state_fields,
       configuration_workflow,
       run,
-      routes: {set_col_order, set_card_value}
+      routes: { set_col_order, set_card_value }
     }
   ]
 };
