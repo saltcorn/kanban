@@ -80,7 +80,7 @@ const configuration_workflow = () =>
                 name: "position_field",
                 label: "Positions field",
                 type: "String",
-                blurb:
+                sublabel:
                   "The table need a fields of type 'Float' to track positions within each column. If you do not select or do not have a position field, the position within each column cannot be stored.",
                 required: false,
                 attributes: {
@@ -278,31 +278,39 @@ const set_card_value = async (
   body
 ) => {
   const table = await Table.findOne({ id: table_id });
-  var newpos;
-  const exrows = await table.getRows(
-    { [column_field]: body[column_field] },
-    { orderBy: position_field }
-  );
-  const before_id = parseInt(body.before_id);
-  if (before_id) {
-    const before_ix = exrows.findIndex(row => row.id === before_id);
-    if (before_ix === 0) newpos = exrows[0][position_field] - 1;
-    else
-      newpos =
-        (exrows[before_ix - 1][position_field] +
-          exrows[before_ix][position_field]) /
-        2;
+  if (position_field) {
+    var newpos;
+    const exrows = await table.getRows(
+      { [column_field]: body[column_field] },
+      { orderBy: position_field }
+    );
+    const before_id = parseInt(body.before_id);
+    if (before_id) {
+      const before_ix = exrows.findIndex(row => row.id === before_id);
+      if (before_ix === 0) newpos = exrows[0][position_field] - 1;
+      else
+        newpos =
+          (exrows[before_ix - 1][position_field] +
+            exrows[before_ix][position_field]) /
+          2;
+    } else {
+      if (exrows.length > 0)
+        newpos = exrows[exrows.length - 1][position_field] + 1;
+      else newpos = Math.random();
+    }
+
+    await table.updateRow(
+      { [column_field]: body[column_field], [position_field]: newpos },
+      parseInt(body.id)
+    );
   } else {
-    if (exrows.length > 0)
-      newpos = exrows[exrows.length - 1][position_field] + 1;
-    else newpos = Math.random();
+    await table.updateRow(
+      { [column_field]: body[column_field] },
+      parseInt(body.id)
+    );
   }
 
-  await table.updateRow(
-    { [column_field]: body[column_field], [position_field]: newpos },
-    parseInt(body.id)
-  );
-  return { json: { success: "ok", exrows } };
+  return { json: { success: "ok" } };
 };
 
 //whole column has been moved
