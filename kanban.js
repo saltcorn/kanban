@@ -141,10 +141,11 @@ const orderedEntries = (obj, keyList) => {
   return entries;
 };
 
-const css = `
+const css = (ncols) => `
   .kancol { 
     border: 1px solid black;
     padding:2px ; margin:2px;
+    width: ${Math.round(100/ncols)}%
   }
   .kancard { 
     border: 1px solid blue;  
@@ -226,7 +227,8 @@ const run = async (
   const sresps = await sview.runMany(state, extraArgs);
   if (position_field)
     await assign_random_positions(sresps, position_field, table_id);
-  var cols = groupBy(sresps, ({ row }) => row[column_field]);
+  const cols = groupBy(sresps, ({ row }) => row[column_field]);
+  const ncols=Object.entries(cols).length
   const sortCol = position_field
     ? vs => vs.sort((a, b) => a.row[position_field] - b.row[position_field])
     : vs => vs;
@@ -265,7 +267,7 @@ const run = async (
   return (
     div({ class: "d-flex kanboard" }, col_divs) +
     //pre(JSON.stringify({table, name:table.name}))+
-    style(css) +
+    style(css(ncols)) +
     script(domReady(js(table.name, column_field, viewname)))
   );
 };
