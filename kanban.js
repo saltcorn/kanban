@@ -12,7 +12,8 @@ const {
   a,
   script,
   pre,
-  domReady
+  domReady,
+  i
 } = require("saltcorn-markup/tags");
 
 const configuration_workflow = () =>
@@ -145,9 +146,16 @@ const css = `
     border: 1px solid black;
     padding:2px ; margin:2px;
   }
-  .kancard { border: 1px solid blue;  
+  .kancard { 
+    border: 1px solid blue;  
     padding:2px;
     margin:2px;
+  }
+  .kancard-empty-placeholder { 
+    display:none
+  }
+  .kancard-empty-placeholder:only-child { 
+    display:block
   }
 `;
 
@@ -173,8 +181,11 @@ const js = (table, column_field, viewname) => `
     setTimeout(reportColumnValues, 0)
   })
   var els=document.querySelectorAll('.kancontainer')
-  dragula(Array.from(els)).on('drop', function (el,target, src,before) {
-    console.log(before)
+  dragula(Array.from(els), {
+    moves: function(el, container, handle) {
+      return !el.className.includes('empty-placeholder')
+    }
+  }).on('drop', function (el,target, src,before) {
     var dataObj={ id: $(el).attr('data-id'),
                   before_id: before ? $(before).attr('data-id') : null }
     dataObj.${column_field}=$(target).attr('data-column-value')
@@ -225,6 +236,12 @@ const run = async (
       h3(text(k)),
       div(
         { class: "kancontainer", "data-column-value": text(k) },
+        div(
+          {
+            class: "kancard kancard-empty-placeholder"
+          },
+          i("(empty)")
+        ),
         sortCol(vs || []).map(({ row, html }) =>
           div(
             {
@@ -276,7 +293,9 @@ const set_card_value = async (
           exrows[before_ix][position_field]) /
         2;
   } else {
-    newpos = exrows[exrows.length - 1][position_field] + 1;
+    if (exrows.length > 0)
+      newpos = exrows[exrows.length - 1][position_field] + 1;
+    else newpos = Math.random();
   }
 
   await table.updateRow(
