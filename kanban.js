@@ -337,6 +337,7 @@ module.exports = {
   ],
   viewtemplates: [
     {
+      sc_plugin_api_version: 1,
       name: "Kanban",
       display_state_form: false,
       get_state_fields,
