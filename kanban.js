@@ -335,9 +335,9 @@ module.exports = {
         "https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.css"
     }
   ],
+  sc_plugin_api_version: 1,
   viewtemplates: [
-    {
-      sc_plugin_api_version: 1,
+    {    
       name: "Kanban",
       display_state_form: false,
       get_state_fields,
