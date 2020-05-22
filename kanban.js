@@ -1,8 +1,8 @@
-const Field = require("saltcorn-data/models/field");
-const Table = require("saltcorn-data/models/table");
-const Form = require("saltcorn-data/models/form");
-const View = require("saltcorn-data/models/view");
-const Workflow = require("saltcorn-data/models/workflow");
+const Field = require("@saltcorn/data/models/field");
+const Table = require("@saltcorn/data/models/table");
+const Form = require("@saltcorn/data/models/form");
+const View = require("@saltcorn/data/models/view");
+const Workflow = require("@saltcorn/data/models/workflow");
 
 const {
   text,
@@ -14,7 +14,7 @@ const {
   pre,
   domReady,
   i
-} = require("saltcorn-markup/tags");
+} = require("@saltcorn/markup/tags");
 
 const configuration_workflow = () =>
   new Workflow({
