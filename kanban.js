@@ -328,7 +328,8 @@ module.exports = {
   headers: [
     {
       script:
-        "https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.js"
+        "https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.js",
+      integrity: "sha256-ug4bHfqHFAj2B5MESRxbLd3R3wdVMQzug2KHZqFEmFI="
     },
     {
       css:
