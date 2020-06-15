@@ -1,11 +1,11 @@
 {
   "name": "@saltcorn/kanban",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Kanban view plugin",
   "main": "kanban.js",
   "dependencies": {
-    "@saltcorn/markup": "^0.0.2",
-    "@saltcorn/data": "^0.0.2"
+    "@saltcorn/markup": "^0.0.8",
+    "@saltcorn/data": "^0.0.8"
   },
   "author": "Tom Nielsen",
   "license": "MIT"
