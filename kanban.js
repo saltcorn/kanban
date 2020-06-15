@@ -223,11 +223,23 @@ const run = async (
   extraArgs
 ) => {
   const table = await Table.findOne({ id: table_id });
+  const fields = await table.getFields()
   const sview = await View.findOne({ name: show_view });
   const sresps = await sview.runMany(state, extraArgs);
   if (position_field)
     await assign_random_positions(sresps, position_field, table_id);
-  const cols = groupBy(sresps, ({ row }) => row[column_field]);
+  var cols = groupBy(sresps, ({ row }) => row[column_field]);
+
+  const column_field_field = fields.find(f=>f.name===column_field)
+  if(column_field_field.attributes && column_field_field.attributes.options) {
+    var colOpts = column_field_field.attributes.options.split(",").map(s=>s.trim())
+    colOpts.forEach(col=>{
+      if(!cols[col])
+        cols[col]=[]
+    })
+  }
+
+
   const ncols=Object.entries(cols).length
   const sortCol = position_field
     ? vs => vs.sort((a, b) => a.row[position_field] - b.row[position_field])
