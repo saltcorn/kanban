@@ -141,11 +141,11 @@ const orderedEntries = (obj, keyList) => {
   return entries;
 };
 
-const css = (ncols) => `
+const css = ncols => `
   .kancol { 
     border: 1px solid black;
     padding:2px ; margin:2px;
-    width: ${Math.round(100/ncols)}%
+    width: ${Math.round(100 / ncols)}%
   }
   .kancard { 
     border: 1px solid blue;  
@@ -223,24 +223,31 @@ const run = async (
   extraArgs
 ) => {
   const table = await Table.findOne({ id: table_id });
-  const fields = await table.getFields()
+  const fields = await table.getFields();
   const sview = await View.findOne({ name: show_view });
+  if (!sview)
+    return div(
+      { class: "alert alert-danger" },
+      "Kanban board incorrectly configured. Cannot find view: ",
+      show_view
+    );
+
   const sresps = await sview.runMany(state, extraArgs);
   if (position_field)
     await assign_random_positions(sresps, position_field, table_id);
   var cols = groupBy(sresps, ({ row }) => row[column_field]);
 
-  const column_field_field = fields.find(f=>f.name===column_field)
-  if(column_field_field.attributes && column_field_field.attributes.options) {
-    var colOpts = column_field_field.attributes.options.split(",").map(s=>s.trim())
-    colOpts.forEach(col=>{
-      if(!cols[col])
-        cols[col]=[]
-    })
+  const column_field_field = fields.find(f => f.name === column_field);
+  if (column_field_field && column_field_field.attributes && column_field_field.attributes.options) {
+    var colOpts = column_field_field.attributes.options
+      .split(",")
+      .map(s => s.trim());
+    colOpts.forEach(col => {
+      if (!cols[col]) cols[col] = [];
+    });
   }
 
-
-  const ncols=Object.entries(cols).length
+  const ncols = Object.entries(cols).length;
   const sortCol = position_field
     ? vs => vs.sort((a, b) => a.row[position_field] - b.row[position_field])
     : vs => vs;
@@ -350,7 +357,7 @@ module.exports = {
   ],
   sc_plugin_api_version: 1,
   viewtemplates: [
-    {    
+    {
       name: "Kanban",
       display_state_form: false,
       get_state_fields,
