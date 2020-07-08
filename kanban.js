@@ -145,10 +145,11 @@ const css = ncols => `
   .kancol { 
     border: 1px solid black;
     padding:2px ; margin:2px;
+    background-color: #f0f0f0;
     width: ${Math.round(100 / ncols)}%
   }
   .kancard { 
-    border: 1px solid blue;  
+    border: 1px solid #aaaaaa;  
     padding:2px;
     margin:2px;
   }
@@ -253,8 +254,8 @@ const run = async (
     : vs => vs;
   const col_divs = orderedEntries(cols, column_order || []).map(([k, vs]) =>
     div(
-      { class: "kancol" },
-      h3(text(k)),
+      { class: "kancol card" },
+      div({class:"card-header"}, h3({class:"card-title"}, text(k))),
       div(
         { class: "kancontainer", "data-column-value": text(k) },
         div(
@@ -266,7 +267,7 @@ const run = async (
         sortCol(vs || []).map(({ row, html }) =>
           div(
             {
-              class: "kancard",
+              class: "kancard card",
               "data-id": text(row.id),
               ...(expand_view && {
                 onClick: `href_to('/view/${expand_view}?id=${row.id}')`
@@ -277,10 +278,10 @@ const run = async (
         )
       ),
       view_to_create &&
-        a(
-          { href: `/view/${view_to_create}?${column_field}=${k}` },
+      div({class:"card-footer"},a(
+          { class:"card-link", href: `/view/${view_to_create}?${column_field}=${k}` },
           "Add new card"
-        )
+        ))
     )
   );
   return (
