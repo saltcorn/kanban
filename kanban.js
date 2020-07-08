@@ -98,6 +98,11 @@ const configuration_workflow = () =>
                 attributes: {
                   options: create_view_opts.join()
                 }
+              },
+              {
+                name: "reload_on_drag",
+                label: "Reload page on drag",
+                type: "Bool",
               }
             ]
           });
@@ -161,7 +166,7 @@ const css = ncols => `
   }
 `;
 
-const js = (table, column_field, viewname) => `
+const js = (table, column_field, viewname, reload_on_drag) => `
 
   var getColumnValues=function() {
     var vs = []
@@ -170,7 +175,9 @@ const js = (table, column_field, viewname) => `
     })
     return vs
   }
-  
+  var onDone=function(){
+    ${reload_on_drag ? 'location.reload();' : ''}
+  }
   var reportColumnValues=function(){
     view_post('${viewname}', 'set_col_order', getColumnValues());
   }
@@ -191,7 +198,7 @@ const js = (table, column_field, viewname) => `
     var dataObj={ id: $(el).attr('data-id'),
                   before_id: before ? $(before).attr('data-id') : null }
     dataObj.${column_field}=$(target).attr('data-column-value')
-    view_post('${viewname}', 'set_card_value', dataObj);
+    view_post('${viewname}', 'set_card_value', dataObj, onDone);
   })
 `;
 
@@ -218,7 +225,8 @@ const run = async (
     view_to_create,
     expand_view,
     column_order,
-    position_field
+    position_field,
+    reload_on_drag
   },
   state,
   extraArgs
@@ -288,7 +296,7 @@ const run = async (
     div({ class: "d-flex kanboard" }, col_divs) +
     //pre(JSON.stringify({table, name:table.name}))+
     style(css(ncols)) +
-    script(domReady(js(table.name, column_field, viewname)))
+    script(domReady(js(table.name, column_field, viewname, reload_on_drag)))
   );
 };
 
