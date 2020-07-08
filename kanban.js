@@ -151,7 +151,11 @@ const css = ncols => `
     border: 1px solid black;
     padding:2px ; margin:2px;
     background-color: #f0f0f0;
-    width: ${Math.round(100 / ncols)}%
+    
+  }
+  .kancolwrap {
+    padding-left: 3px;
+    padding-right: 3px;
   }
   .kancard { 
     border: 1px solid #aaaaaa;  
@@ -261,7 +265,8 @@ const run = async (
     ? vs => vs.sort((a, b) => a.row[position_field] - b.row[position_field])
     : vs => vs;
   const col_divs = orderedEntries(cols, column_order || []).map(([k, vs]) =>
-    div(
+  div({class: "col kancolwrap"},
+  div(
       { class: "kancol card" },
       div({class:"card-header"}, h3({class:"card-title"}, text(k))),
       div(
@@ -291,9 +296,9 @@ const run = async (
           "Add new card"
         ))
     )
-  );
+  ));
   return (
-    div({ class: "d-flex kanboard" }, col_divs) +
+    div({ class: "row kanboard" }, col_divs) +
     //pre(JSON.stringify({table, name:table.name}))+
     style(css(ncols)) +
     script(domReady(js(table.name, column_field, viewname, reload_on_drag)))
