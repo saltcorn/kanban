@@ -13,7 +13,7 @@ const {
   script,
   pre,
   domReady,
-  i
+  i,
 } = require("@saltcorn/markup/tags");
 
 const configuration_workflow = () =>
@@ -21,31 +21,32 @@ const configuration_workflow = () =>
     steps: [
       {
         name: "views",
-        form: async context => {
+        form: async (context) => {
           const table = await Table.findOne({ id: context.table_id });
           const fields = await table.getFields();
 
           const show_views = await View.find_table_views_where(
             context.table_id,
             ({ state_fields, viewtemplate, viewrow }) =>
-              viewtemplate.runMany && viewrow.name !== context.viewname
+              (viewtemplate.runMany || viewtemplate.renderRows) &&
+              viewrow.name !== context.viewname
           );
-          const show_view_opts = show_views.map(v => v.name);
+          const show_view_opts = show_views.map((v) => v.name);
 
           const expand_views = await View.find_table_views_where(
             context.table_id,
             ({ state_fields, viewtemplate, viewrow }) =>
               viewrow.name !== context.viewname
           );
-          const expand_view_opts = expand_views.map(v => v.name);
+          const expand_view_opts = expand_views.map((v) => v.name);
 
           const create_views = await View.find_table_views_where(
             context.table_id,
             ({ state_fields, viewrow }) =>
               viewrow.name !== context.viewname &&
-              state_fields.every(sf => !sf.required)
+              state_fields.every((sf) => !sf.required)
           );
-          const create_view_opts = create_views.map(v => v.name);
+          const create_view_opts = create_views.map((v) => v.name);
 
           return new Form({
             fields: [
@@ -55,8 +56,8 @@ const configuration_workflow = () =>
                 type: "String",
                 required: true,
                 attributes: {
-                  options: show_view_opts.join()
-                }
+                  options: show_view_opts.join(),
+                },
               },
               {
                 name: "expand_view",
@@ -64,8 +65,8 @@ const configuration_workflow = () =>
                 type: "String",
                 required: false,
                 attributes: {
-                  options: expand_view_opts.join()
-                }
+                  options: expand_view_opts.join(),
+                },
               },
               {
                 name: "column_field",
@@ -73,8 +74,8 @@ const configuration_workflow = () =>
                 type: "String",
                 required: true,
                 attributes: {
-                  options: fields.map(f => f.name).join()
-                }
+                  options: fields.map((f) => f.name).join(),
+                },
               },
               {
                 name: "position_field",
@@ -85,10 +86,10 @@ const configuration_workflow = () =>
                 required: false,
                 attributes: {
                   options: fields
-                    .filter(f => f.type.name === "Float")
-                    .map(f => f.name)
-                    .join()
-                }
+                    .filter((f) => f.type.name === "Float")
+                    .map((f) => f.name)
+                    .join(),
+                },
               },
               {
                 name: "view_to_create",
@@ -96,24 +97,24 @@ const configuration_workflow = () =>
                 sublabel: "Leave blank to have no link to create a new item",
                 type: "String",
                 attributes: {
-                  options: create_view_opts.join()
-                }
+                  options: create_view_opts.join(),
+                },
               },
               {
                 name: "reload_on_drag",
                 label: "Reload page on drag",
                 type: "Bool",
-              }
-            ]
+              },
+            ],
           });
-        }
-      }
-    ]
+        },
+      },
+    ],
   });
 
 const get_state_fields = async (table_id, viewname, { show_view }) => {
   const table_fields = await Field.find({ table_id });
-  return table_fields.map(f => {
+  return table_fields.map((f) => {
     const sf = new Field(f);
     sf.required = false;
     return sf;
@@ -123,7 +124,7 @@ const get_state_fields = async (table_id, viewname, { show_view }) => {
 //https://stackoverflow.com/questions/14446511/most-efficient-method-to-groupby-on-an-array-of-objects
 function groupBy(list, keyGetter) {
   var map = {};
-  list.forEach(item => {
+  list.forEach((item) => {
     const key = keyGetter(item);
     const collection = map[key];
     if (!collection) {
@@ -137,7 +138,7 @@ function groupBy(list, keyGetter) {
 
 const orderedEntries = (obj, keyList) => {
   var entries = [];
-  keyList.forEach(k => {
+  keyList.forEach((k) => {
     if (typeof obj[k] !== undefined) entries.push([k, obj[k]]);
   });
   Object.entries(obj).forEach(([k, v]) => {
@@ -146,7 +147,7 @@ const orderedEntries = (obj, keyList) => {
   return entries;
 };
 
-const css = ncols => `
+const css = (ncols) => `
   .kancol { 
     border: 1px solid black;
     padding:2px ; margin:2px;
@@ -180,7 +181,7 @@ const js = (table, column_field, viewname, reload_on_drag) => `
     return vs
   }
   var onDone=function(){
-    ${reload_on_drag ? 'location.reload();' : ''}
+    ${reload_on_drag ? "location.reload();" : ""}
   }
   var reportColumnValues=function(){
     view_post('${viewname}', 'set_col_order', getColumnValues());
@@ -230,7 +231,7 @@ const run = async (
     expand_view,
     column_order,
     position_field,
-    reload_on_drag
+    reload_on_drag,
   },
   state,
   extraArgs
@@ -250,53 +251,65 @@ const run = async (
     await assign_random_positions(sresps, position_field, table_id);
   var cols = groupBy(sresps, ({ row }) => row[column_field]);
 
-  const column_field_field = fields.find(f => f.name === column_field);
-  if (column_field_field && column_field_field.attributes && column_field_field.attributes.options) {
+  const column_field_field = fields.find((f) => f.name === column_field);
+  if (
+    column_field_field &&
+    column_field_field.attributes &&
+    column_field_field.attributes.options
+  ) {
     var colOpts = column_field_field.attributes.options
       .split(",")
-      .map(s => s.trim());
-    colOpts.forEach(col => {
+      .map((s) => s.trim());
+    colOpts.forEach((col) => {
       if (!cols[col]) cols[col] = [];
     });
   }
 
   const ncols = Object.entries(cols).length;
   const sortCol = position_field
-    ? vs => vs.sort((a, b) => a.row[position_field] - b.row[position_field])
-    : vs => vs;
+    ? (vs) => vs.sort((a, b) => a.row[position_field] - b.row[position_field])
+    : (vs) => vs;
   const col_divs = orderedEntries(cols, column_order || []).map(([k, vs]) =>
-  div({class: "col kancolwrap"},
-  div(
-      { class: "kancol card" },
-      div({class:"card-header"}, h3({class:"card-title"}, text(k))),
+    div(
+      { class: "col kancolwrap" },
       div(
-        { class: "kancontainer", "data-column-value": text(k) },
+        { class: "kancol card" },
+        div({ class: "card-header" }, h3({ class: "card-title" }, text(k))),
         div(
-          {
-            class: "kancard kancard-empty-placeholder"
-          },
-          i("(empty)")
-        ),
-        sortCol(vs || []).map(({ row, html }) =>
+          { class: "kancontainer", "data-column-value": text(k) },
           div(
             {
-              class: "kancard card",
-              "data-id": text(row.id),
-              ...(expand_view && {
-                onClick: `href_to('/view/${expand_view}?id=${row.id}')`
-              })
+              class: "kancard kancard-empty-placeholder",
             },
-            html
+            i("(empty)")
+          ),
+          sortCol(vs || []).map(({ row, html }) =>
+            div(
+              {
+                class: "kancard card",
+                "data-id": text(row.id),
+                ...(expand_view && {
+                  onClick: `href_to('/view/${expand_view}?id=${row.id}')`,
+                }),
+              },
+              html
+            )
           )
-        )
-      ),
-      view_to_create &&
-      div({class:"card-footer"},a(
-          { class:"card-link", href: `/view/${view_to_create}?${column_field}=${k}` },
-          "Add new card"
-        ))
+        ),
+        view_to_create &&
+          div(
+            { class: "card-footer" },
+            a(
+              {
+                class: "card-link",
+                href: `/view/${view_to_create}?${column_field}=${k}`,
+              },
+              "Add new card"
+            )
+          )
+      )
     )
-  ));
+  );
   return (
     div({ class: "row kanboard" }, col_divs) +
     //pre(JSON.stringify({table, name:table.name}))+
@@ -321,7 +334,7 @@ const set_card_value = async (
     );
     const before_id = parseInt(body.before_id);
     if (before_id) {
-      const before_ix = exrows.findIndex(row => row.id === before_id);
+      const before_ix = exrows.findIndex((row) => row.id === before_id);
       if (before_ix === 0) newpos = exrows[0][position_field] - 1;
       else
         newpos =
@@ -352,7 +365,7 @@ const set_card_value = async (
 const set_col_order = async (table_id, viewname, config, body) => {
   const view = await View.findOne({ name: viewname });
   const newConfig = {
-    configuration: { ...view.configuration, column_order: body }
+    configuration: { ...view.configuration, column_order: body },
   };
   await View.update(newConfig, view.id);
   return { json: { success: "ok", newconfig: newConfig } };
@@ -362,12 +375,12 @@ module.exports = {
     {
       script:
         "https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.js",
-      integrity: "sha256-ug4bHfqHFAj2B5MESRxbLd3R3wdVMQzug2KHZqFEmFI="
+      integrity: "sha256-ug4bHfqHFAj2B5MESRxbLd3R3wdVMQzug2KHZqFEmFI=",
     },
     {
       css:
-        "https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.css"
-    }
+        "https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.css",
+    },
   ],
   sc_plugin_api_version: 1,
   viewtemplates: [
@@ -377,7 +390,7 @@ module.exports = {
       get_state_fields,
       configuration_workflow,
       run,
-      routes: { set_col_order, set_card_value }
-    }
-  ]
+      routes: { set_col_order, set_card_value },
+    },
+  ],
 };
