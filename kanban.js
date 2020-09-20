@@ -220,7 +220,17 @@ const assign_random_positions = async (rows, position_field, table_id) => {
     }
   }
 };
-
+const readState = (state, fields) => {
+  fields.forEach((f) => {
+    const current = state[f.name];
+    if (typeof current !== "undefined") {
+      if (f.type.read) state[f.name] = f.type.read(current);
+      else if (f.type === "Key")
+        state[f.name] = current === "null" ? null : +current;
+    }
+  });
+  return state;
+};
 const run = async (
   table_id,
   viewname,
@@ -238,6 +248,8 @@ const run = async (
 ) => {
   const table = await Table.findOne({ id: table_id });
   const fields = await table.getFields();
+  readState(state, fields);
+
   const sview = await View.findOne({ name: show_view });
   if (!sview)
     return div(
