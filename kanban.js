@@ -314,7 +314,9 @@ const run = async (
             a(
               {
                 class: "card-link",
-                href: `/view/${view_to_create}?${column_field}=${k}`,
+                href: `/view/${text(view_to_create)}?${text(
+                  column_field
+                )}=${text(k)}`,
               },
               "Add new card"
             )
