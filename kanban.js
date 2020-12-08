@@ -14,6 +14,7 @@ const {
   pre,
   domReady,
   i,
+  text_attr,
 } = require("@saltcorn/markup/tags");
 
 const configuration_workflow = () =>
@@ -286,26 +287,30 @@ const run = async (
       { class: "col kancolwrap" },
       div(
         { class: "kancol card" },
-        div({ class: "card-header" }, h3({ class: "card-title" }, text(k))),
         div(
-          { class: "kancontainer", "data-column-value": text(k) },
+          { class: "card-header" },
+          h3({ class: "card-title" }, text_attr(k))
+        ),
+        div(
+          { class: "kancontainer", "data-column-value": text_attr(k) },
           div(
             {
               class: "kancard kancard-empty-placeholder",
             },
             i("(empty)")
           ),
-          sortCol(vs || []).map(({ row, html }) =>
-            div(
-              {
-                class: "kancard card",
-                "data-id": text(row.id),
-                ...(expand_view && {
-                  onClick: `href_to('/view/${expand_view}?id=${row.id}')`,
-                }),
-              },
-              html
-            )
+          sortCol(vs || []).map(
+            ({ row, html }) =>
+              div(
+                {
+                  class: "kancard card",
+                  "data-id": text(row.id),
+                  ...(expand_view && {
+                    onClick: `href_to('/view/${expand_view}?id=${row.id}')`,
+                  }),
+                },
+                html
+              ) + "\n"
           )
         ),
         view_to_create &&
@@ -314,9 +319,9 @@ const run = async (
             a(
               {
                 class: "card-link",
-                href: `/view/${text(view_to_create)}?${text(
+                href: `/view/${text(view_to_create)}?${text_attr(
                   column_field
-                )}=${text(k)}`,
+                )}=${text_attr(k)}`,
               },
               "Add new card"
             )
