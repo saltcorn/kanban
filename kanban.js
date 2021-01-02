@@ -140,7 +140,7 @@ function groupBy(list, keyGetter) {
 const orderedEntries = (obj, keyList) => {
   var entries = [];
   keyList.forEach((k) => {
-    if (typeof obj[k] !== undefined) entries.push([k, obj[k]]);
+    if (typeof obj[k] !== "undefined") entries.push([k, obj[k]]);
   });
   Object.entries(obj).forEach(([k, v]) => {
     if (!keyList.includes(k)) entries.push([k, v]);
