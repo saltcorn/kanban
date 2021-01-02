@@ -356,10 +356,22 @@ const set_card_value = async (
   body
 ) => {
   const table = await Table.findOne({ id: table_id });
+  let colval = body[column_field];
+  const fields = await table.getFields();
+  const column_field_field = fields.find((f) => f.name === column_field);
+  if (column_field_field && column_field_field.type === "Key") {
+    const reftable = await Table.findOne({
+      name: column_field_field.reftable_name,
+    });
+    const refrow = await reftable.getRow({
+      [column_field_field.attributes.summary_field]: body[column_field],
+    });
+    colval = refrow.id;
+  }
   if (position_field) {
     var newpos;
     const exrows = await table.getRows(
-      { [column_field]: body[column_field] },
+      { [column_field]: colval },
       { orderBy: position_field }
     );
     const before_id = parseInt(body.before_id);
@@ -378,14 +390,11 @@ const set_card_value = async (
     }
 
     await table.updateRow(
-      { [column_field]: body[column_field], [position_field]: newpos },
+      { [column_field]: colval, [position_field]: newpos },
       parseInt(body.id)
     );
   } else {
-    await table.updateRow(
-      { [column_field]: body[column_field] },
-      parseInt(body.id)
-    );
+    await table.updateRow({ [column_field]: colval }, parseInt(body.id));
   }
 
   return { json: { success: "ok" } };
