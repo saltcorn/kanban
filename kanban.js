@@ -276,6 +276,17 @@ const run = async (
     colOpts.forEach((col) => {
       if (!cols[col]) cols[col] = [];
     });
+  } else if (column_field_field && column_field_field.type === "Key") {
+    const reftable = await Table.findOne({
+      name: column_field_field.reftable_name,
+    });
+    const refRows = await reftable.getRows();
+    refRows.forEach((r) => {
+      if (cols[r.id]) {
+        cols[r[column_field_field.attributes.summary_field]] = cols[r.id];
+        delete cols[r.id];
+      } else cols[r[column_field_field.attributes.summary_field]] = [];
+    });
   }
 
   const ncols = Object.entries(cols).length;
