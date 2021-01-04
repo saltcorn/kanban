@@ -265,7 +265,7 @@ const run = async (
   if (position_field)
     await assign_random_positions(sresps, position_field, table_id);
   var cols = groupBy(sresps, ({ row }) => row[column_field]);
-
+  let originalColNames = {};
   const column_field_field = fields.find((f) => f.name === column_field);
   if (
     column_field_field &&
@@ -288,6 +288,7 @@ const run = async (
         cols[r[column_field_field.attributes.summary_field]] = cols[r.id];
         delete cols[r.id];
       } else cols[r[column_field_field.attributes.summary_field]] = [];
+      originalColNames[r[column_field_field.attributes.summary_field]] = r.id;
     });
   }
 
@@ -335,7 +336,7 @@ const run = async (
                 class: "card-link",
                 href: `/view/${text(view_to_create)}?${text_attr(
                   column_field
-                )}=${text_attr(k)}`,
+                )}=${text_attr(originalColNames[k] || k)}`,
               },
               "Add new card"
             )
