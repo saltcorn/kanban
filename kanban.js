@@ -250,7 +250,9 @@ const run = async (
   const table = await Table.findOne({ id: table_id });
   const fields = await table.getFields();
   readState(state, fields);
-
+  const role = extraArgs.req.isAuthenticated()
+    ? extraArgs.req.user.role_id
+    : 10;
   const sview = await View.findOne({ name: show_view });
   if (!sview)
     return div(
@@ -325,6 +327,7 @@ const run = async (
           )
         ),
         view_to_create &&
+          role <= table.min_role_write &&
           div(
             { class: "card-footer" },
             a(
@@ -353,9 +356,14 @@ const set_card_value = async (
   table_id,
   viewname,
   { column_field, position_field },
-  body
+  body,
+  { req }
 ) => {
   const table = await Table.findOne({ id: table_id });
+  const role = req.isAuthenticated() ? req.user.role_id : 10;
+  if (role > table.min_role_write) {
+    return { json: { error: "not authorized" } };
+  }
   let colval = body[column_field];
   const fields = await table.getFields();
   const column_field_field = fields.find((f) => f.name === column_field);
@@ -401,7 +409,13 @@ const set_card_value = async (
 };
 
 //whole column has been moved
-const set_col_order = async (table_id, viewname, config, body) => {
+const set_col_order = async (table_id, viewname, config, body, { req }) => {
+  const table = await Table.findOne({ id: table_id });
+
+  const role = req.isAuthenticated() ? req.user.role_id : 10;
+  if (role > table.min_role_write) {
+    return { json: { error: "not authorized" } };
+  }
   const view = await View.findOne({ name: viewname });
   const newConfig = {
     configuration: { ...view.configuration, column_order: body },
