@@ -298,7 +298,7 @@ const run = async (
     : (vs) => vs;
   const col_divs = orderedEntries(cols, column_order || []).map(([k, vs]) =>
     div(
-      { class: "col kancolwrap" },
+      { class: "col-sm kancolwrap" },
       div(
         { class: "kancol card" },
         div(
