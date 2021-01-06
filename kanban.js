@@ -7,7 +7,7 @@ const Workflow = require("@saltcorn/data/models/workflow");
 const {
   text,
   div,
-  h3,
+  h5,
   style,
   a,
   script,
@@ -232,6 +232,9 @@ const readState = (state, fields) => {
   });
   return state;
 };
+
+const position_setter = (position_field, maxpos) =>
+  position_field ? `&${position_field}=${Math.round(maxpos) + 2}` : "";
 const run = async (
   table_id,
   viewname,
@@ -296,14 +299,15 @@ const run = async (
   const sortCol = position_field
     ? (vs) => vs.sort((a, b) => a.row[position_field] - b.row[position_field])
     : (vs) => vs;
-  const col_divs = orderedEntries(cols, column_order || []).map(([k, vs]) =>
-    div(
+  const col_divs = orderedEntries(cols, column_order || []).map(([k, vs]) => {
+    let maxpos = -10000;
+    return div(
       { class: "col-sm kancolwrap" },
       div(
         { class: "kancol card" },
         div(
           { class: "card-header" },
-          h3({ class: "card-title" }, text_attr(k))
+          h5({ class: "card-title" }, text_attr(k))
         ),
         div(
           { class: "kancontainer", "data-column-value": text_attr(k) },
@@ -313,8 +317,10 @@ const run = async (
             },
             i("(empty)")
           ),
-          sortCol(vs || []).map(
-            ({ row, html }) =>
+          sortCol(vs || []).map(({ row, html }) => {
+            if (position_field && row[position_field] > maxpos)
+              maxpos = row[position_field];
+            return (
               div(
                 {
                   class: "kancard card",
@@ -325,7 +331,8 @@ const run = async (
                 },
                 html
               ) + "\n"
-          )
+            );
+          })
         ),
         view_to_create &&
           role <= table.min_role_write &&
@@ -336,14 +343,17 @@ const run = async (
                 class: "card-link",
                 href: `/view/${text(view_to_create)}?${text_attr(
                   column_field
-                )}=${text_attr(originalColNames[k] || k)}`,
+                )}=${text_attr(originalColNames[k] || k)}${position_setter(
+                  position_field,
+                  maxpos
+                )}`,
               },
               "Add new card"
             )
           )
       )
-    )
-  );
+    );
+  });
   return (
     div({ class: "row kanboard" }, col_divs) +
     //pre(JSON.stringify({table, name:table.name}))+
