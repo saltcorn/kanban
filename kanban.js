@@ -439,16 +439,14 @@ const set_col_order = async (table_id, viewname, config, body, { req }) => {
 module.exports = {
   headers: [
     {
-      script:
-        "https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.js",
-      integrity: "sha256-ug4bHfqHFAj2B5MESRxbLd3R3wdVMQzug2KHZqFEmFI=",
+      script: "/plugins/public/kanban/dragula.min.js",
     },
     {
-      css:
-        "https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.css",
+      css: "/plugins/public/kanban/dragula.min.css",
     },
   ],
   sc_plugin_api_version: 1,
+  plugin_name: "kanban",
   viewtemplates: [
     {
       name: "Kanban",
