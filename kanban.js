@@ -106,6 +106,23 @@ const configuration_workflow = () =>
                 label: "Reload page on drag",
                 type: "Bool",
               },
+              {
+                name: "column_padding",
+                label: "Column padding",
+                type: "Integer",
+                sublabel: "0-5",
+                attributes: {
+                  max: 5,
+                  min: 0,
+                },
+                default: 1,
+              },
+              {
+                name: "col_bg_color",
+                label: "Column background color",
+                type: "Color",
+                default: "#f0f0f0",
+              },
             ],
           });
         },
@@ -150,12 +167,14 @@ const orderedEntries = (obj, keyList) => {
   return entries;
 };
 
-const css = (ncols) => `
+const css = ({ ncols, col_bg_color }) => `
   .kancol { 
     border: 1px solid black;
-    padding:2px ; margin:2px;
-    background-color: #f0f0f0;
-    
+    margin:2px;
+    background-color: ${col_bg_color};
+  }
+  .kancol .card-header, .kancol .card-footer {
+    background-color: ${col_bg_color};
   }
   .kancolwrap {
     padding-left: 3px;
@@ -248,6 +267,8 @@ const run = async (
     column_order,
     position_field,
     reload_on_drag,
+    column_padding,
+    col_bg_color = "#f0f0f0",
   },
   state,
   extraArgs
@@ -306,7 +327,12 @@ const run = async (
     return div(
       { class: "col-sm kancolwrap" },
       div(
-        { class: "kancol card" },
+        {
+          class: [
+            "kancol card",
+            `p-${typeof column_padding === "undefined" ? 1 : column_padding}`,
+          ],
+        },
         div(
           { class: "card-header" },
           h5({ class: "card-title" }, text_attr(k))
@@ -359,7 +385,7 @@ const run = async (
   return (
     div({ class: "row kanboard" }, col_divs) +
     //pre(JSON.stringify({table, name:table.name}))+
-    style(css(ncols)) +
+    style(css({ ncols, col_bg_color })) +
     script(domReady(js(table.name, column_field, viewname, reload_on_drag)))
   );
 };
