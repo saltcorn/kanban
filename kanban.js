@@ -123,6 +123,12 @@ const configuration_workflow = () =>
                 type: "Color",
                 default: "#f0f0f0",
               },
+              {
+                name: "col_text_color",
+                label: "Column text color",
+                type: "Color",
+                default: "#000000",
+              },
             ],
           });
         },
@@ -167,14 +173,18 @@ const orderedEntries = (obj, keyList) => {
   return entries;
 };
 
-const css = ({ ncols, col_bg_color }) => `
+const css = ({ ncols, col_bg_color, col_text_color }) => `
   .kancol { 
     border: 1px solid black;
     margin:2px;
     background-color: ${col_bg_color};
   }
-  .kancol .card-header, .kancol .card-footer {
+  .kancol .card-header, .kancol .card-footer, .kancol .card-footer a {
     background-color: ${col_bg_color};
+    color: ${col_text_color};
+  }
+  .kancol .card-header h5 {
+    margin-bottom: 0px;
   }
   .kancolwrap {
     padding-left: 3px;
@@ -269,6 +279,7 @@ const run = async (
     reload_on_drag,
     column_padding,
     col_bg_color = "#f0f0f0",
+    col_text_color = "#000000",
   },
   state,
   extraArgs
@@ -385,7 +396,7 @@ const run = async (
   return (
     div({ class: "row kanboard" }, col_divs) +
     //pre(JSON.stringify({table, name:table.name}))+
-    style(css({ ncols, col_bg_color })) +
+    style(css({ ncols, col_bg_color, col_text_color })) +
     script(domReady(js(table.name, column_field, viewname, reload_on_drag)))
   );
 };
