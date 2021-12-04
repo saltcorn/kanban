@@ -102,6 +102,24 @@ const configuration_workflow = () =>
                 },
               },
               {
+                name: "col_width",
+                label: "Column width",
+                type: "Integer",
+                sublabel: "Leave blank to divide the screen width evenly",
+              },
+              {
+                name: "col_width_units",
+                label: "Column width units",
+                type: "String",
+                required: true,
+                fieldview: "radio_group",
+                attributes: {
+                  inline: true,
+                  options: ["px", "%", "vw", "em", "rem"],
+                },
+                default: "px",
+              },
+              {
                 name: "reload_on_drag",
                 label: "Reload page on drag",
                 type: "Bool",
@@ -173,7 +191,13 @@ const orderedEntries = (obj, keyList) => {
   return entries;
 };
 
-const css = ({ ncols, col_bg_color, col_text_color }) => `
+const css = ({
+  ncols,
+  col_bg_color,
+  col_text_color,
+  col_width,
+  col_width_units,
+}) => `
   .kancol { 
     border: 1px solid black;
     margin:2px;
@@ -189,6 +213,17 @@ const css = ({ ncols, col_bg_color, col_text_color }) => `
   .kancolwrap {
     padding-left: 3px;
     padding-right: 3px;
+  }
+  .kancolwrap.setwidth {
+    ${col_width ? `width: ${col_width}${col_width_units} !important;` : ""}
+    float: left;
+  }
+  .kanboard.setwidth {
+    min-width: ${ncols * col_width}${col_width_units};
+  }
+  .kanboardwrap.setwidth {
+    overflow-x: scroll;
+    width: 100%;
   }
   .kancard { 
     border: 1px solid #aaaaaa;  
@@ -280,6 +315,8 @@ const run = async (
     column_padding,
     col_bg_color = "#f0f0f0",
     col_text_color = "#000000",
+    col_width,
+    col_width_units,
   },
   state,
   extraArgs
@@ -336,7 +373,7 @@ const run = async (
   const col_divs = orderedEntries(cols, column_order || []).map(([k, vs]) => {
     let maxpos = -10000;
     return div(
-      { class: "col-sm kancolwrap" },
+      { class: ["kancolwrap", col_width ? "setwidth" : "col-sm"] },
       div(
         {
           class: [
@@ -393,11 +430,21 @@ const run = async (
       )
     );
   });
-  return (
-    div({ class: "row kanboard" }, col_divs) +
-    //pre(JSON.stringify({table, name:table.name}))+
-    style(css({ ncols, col_bg_color, col_text_color })) +
-    script(domReady(js(table.name, column_field, viewname, reload_on_drag)))
+  console.log({
+    ncols,
+    col_bg_color,
+    col_text_color,
+    col_width,
+    col_width_units,
+  });
+  return div(
+    { class: ["kanboardwrap", col_width ? "setwidth" : ""] },
+    div({ class: ["kanboard", col_width ? "setwidth" : "row"] }, col_divs) +
+      //pre(JSON.stringify({table, name:table.name}))+
+      style(
+        css({ ncols, col_bg_color, col_text_color, col_width, col_width_units })
+      ) +
+      script(domReady(js(table.name, column_field, viewname, reload_on_drag)))
   );
 };
 
