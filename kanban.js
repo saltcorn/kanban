@@ -456,13 +456,6 @@ const run = async (
       )
     );
   });
-  console.log({
-    ncols,
-    col_bg_color,
-    col_text_color,
-    col_width,
-    col_width_units,
-  });
   return div(
     { class: ["kanboardwrap", col_width ? "setwidth" : ""] },
     div({ class: ["kanboard", col_width ? "setwidth" : "row"] }, col_divs) +
