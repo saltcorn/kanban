@@ -125,6 +125,13 @@ const configuration_workflow = () =>
                 type: "Bool",
               },
               {
+                name: "disable_column_reordering",
+                label: "Disable column re-ordering",
+                sublabel:
+                  "Tick this to lock the ordering of the columns, but not the cards",
+                type: "Bool",
+              },
+              {
                 name: "column_padding",
                 label: "Column padding",
                 type: "Integer",
@@ -243,7 +250,13 @@ const css = ({
   }
 `;
 
-const js = (table, column_field, viewname, reload_on_drag) => `
+const js = (
+  table,
+  column_field,
+  viewname,
+  reload_on_drag,
+  disable_column_reordering
+) => `
 
   var getColumnValues=function() {
     var vs = []
@@ -258,6 +271,10 @@ const js = (table, column_field, viewname, reload_on_drag) => `
   var reportColumnValues=function(){
     view_post('${viewname}', 'set_col_order', getColumnValues());
   }
+  ${
+    disable_column_reordering
+      ? ""
+      : `
   var els=document.querySelectorAll('.kanboard')
   dragula(Array.from(els), {
     moves: function(el, container, handle) {
@@ -266,6 +283,8 @@ const js = (table, column_field, viewname, reload_on_drag) => `
   }).on('drop', function () {
     setTimeout(reportColumnValues, 0)
   })
+  `
+  }
   var els=document.querySelectorAll('.kancontainer')
   dragula(Array.from(els), {
     moves: function(el, container, handle) {
@@ -322,6 +341,7 @@ const run = async (
     col_text_color = "#000000",
     col_width,
     col_width_units,
+    disable_column_reordering,
   },
   state,
   extraArgs
@@ -450,7 +470,17 @@ const run = async (
       style(
         css({ ncols, col_bg_color, col_text_color, col_width, col_width_units })
       ) +
-      script(domReady(js(table.name, column_field, viewname, reload_on_drag)))
+      script(
+        domReady(
+          js(
+            table.name,
+            column_field,
+            viewname,
+            reload_on_drag,
+            disable_column_reordering
+          )
+        )
+      )
   );
 };
 
