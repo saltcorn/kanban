@@ -199,20 +199,25 @@ const css = ({
   col_width_units,
 }) => `
   .kancol { 
-    border: 1px solid black;
     margin:2px;
     background-color: ${col_bg_color};
+    box-shadow: 0px 16px 24px rgba(58, 79, 115, 0.08), 0px 2px 6px rgba(58, 79, 115, 0.07), 0px 0px 1px rgba(58, 79, 115, 0.04);
   }
   .kancol .card-header, .kancol .card-footer, .kancol .card-footer a {
     background-color: ${col_bg_color};
     color: ${col_text_color};
+    padding: 2px 2px 4px;
+    border: none;
   }
   .kancol .card-header h5 {
     margin-bottom: 0px;
   }
+  .kancolwrap:nth-child(1) {
+    padding-left: 0px;
+  }
   .kancolwrap {
-    padding-left: 3px;
-    padding-right: 3px;
+    padding-left: 5px;
+    padding-right: 5px;
   }
   .kancolwrap.setwidth {
     ${col_width ? `width: ${col_width}${col_width_units} !important;` : ""}
@@ -226,9 +231,9 @@ const css = ({
     width: 100%;
   }
   .kancard { 
-    border: 1px solid #aaaaaa;  
-    padding:2px;
-    margin:2px;
+    padding:8px;
+    margin:2px 2px 6px;
+    box-shadow: 0px 10px 20px rgba(58, 79, 115, 0.04), 0px 2px 6px rgba(58, 79, 115, 0.08), 0px 0px 1px rgba(58, 79, 115, 0.04);
   }
   .kancard-empty-placeholder { 
     display:none
@@ -424,6 +429,7 @@ const run = async (
                   maxpos
                 )}`,
               },
+              i({ class: "fas fa-plus-circle mr-1" }),
               "Add new card"
             )
           )
