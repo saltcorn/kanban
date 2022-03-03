@@ -459,12 +459,12 @@ const run = async (
   });
   return div(
     { class: ["kanboardwrap", col_width ? "setwidth" : ""] },
-    div({ class: ["kanboard", col_width ? "setwidth" : `row row-cols-${col_divs.length}`] }, col_divs) +
+    div({ class: ["kanboard", col_width ? "setwidth" : `row row-cols-${col_divs.length}`] }, col_divs),
       //pre(JSON.stringify({table, name:table.name}))+
       style(
         css({ ncols, col_bg_color, col_text_color, col_width, col_width_units })
-      ) +
-      script(
+      ),
+      role <= table.min_role_write && script(
         domReady(
           js(
             table.name,
