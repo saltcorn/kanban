@@ -240,6 +240,7 @@ const css = ({
   .kancard { 
     padding:8px;
     margin:2px 2px 6px;
+    display: block;
     box-shadow: 0px 10px 20px rgba(58, 79, 115, 0.04), 0px 2px 6px rgba(58, 79, 115, 0.08), 0px 0px 1px rgba(58, 79, 115, 0.04);
   }
   .kancard-empty-placeholder { 
