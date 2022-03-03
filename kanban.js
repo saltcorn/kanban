@@ -399,7 +399,7 @@ const run = async (
   const col_divs = orderedEntries(cols, column_order || []).map(([k, vs]) => {
     let maxpos = -10000;
     return div(
-      { class: ["kancolwrap", col_width ? "setwidth" : "col-sm"] },
+      { class: ["kancolwrap", col_width ? "setwidth" : "col"] },
       div(
         {
           class: [
@@ -459,7 +459,7 @@ const run = async (
   });
   return div(
     { class: ["kanboardwrap", col_width ? "setwidth" : ""] },
-    div({ class: ["kanboard", col_width ? "setwidth" : "row"] }, col_divs) +
+    div({ class: ["kanboard", col_width ? "setwidth" : `row row-cols-${col_divs.length}`] }, col_divs) +
       //pre(JSON.stringify({table, name:table.name}))+
       style(
         css({ ncols, col_bg_color, col_text_color, col_width, col_width_units })
