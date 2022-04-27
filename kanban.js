@@ -14,6 +14,7 @@ const {
   pre,
   domReady,
   i,
+  hr,
   text_attr,
 } = require("@saltcorn/markup/tags");
 
@@ -153,6 +154,21 @@ const configuration_workflow = () =>
                 label: "Column text color",
                 type: "Color",
                 default: "#000000",
+              },
+              {
+                name: "swimlane_field",
+                label: "Swimlane field",
+                type: "String",
+                attributes: {
+                  options: fields.map((f) => f.name).join(),
+                },
+              },
+              {
+                name: "swimlane_height",
+                label: "Swimlane height px",
+                type: "Integer",
+                default: 300,
+                showIf: { swimlane_field: fields.map((f) => f.name) },
               },
             ],
           });
@@ -343,6 +359,8 @@ const run = async (
     col_width,
     col_width_units,
     disable_column_reordering,
+    swimlane_field,
+    swimlane_height,
   },
   state,
   extraArgs
@@ -396,7 +414,7 @@ const run = async (
   const sortCol = position_field
     ? (vs) => vs.sort((a, b) => a.row[position_field] - b.row[position_field])
     : (vs) => vs;
-  const col_divs = orderedEntries(cols, column_order || []).map(([k, vs]) => {
+  const get_col_divs = ([hdrName, vs]) => {
     let maxpos = -10000;
     return div(
       { class: ["kancolwrap", col_width ? "setwidth" : "col"] },
@@ -409,10 +427,10 @@ const run = async (
         },
         div(
           { class: "card-header" },
-          h5({ class: "card-title" }, text_attr(k))
+          h5({ class: "card-title" }, text_attr(hdrName))
         ),
         div(
-          { class: "kancontainer", "data-column-value": text_attr(k) },
+          { class: "kancontainer", "data-column-value": text_attr(hdrName) },
           div(
             {
               class: "kancard kancard-empty-placeholder",
@@ -445,10 +463,9 @@ const run = async (
                 class: "card-link",
                 href: `/view/${text(view_to_create)}?${text_attr(
                   column_field
-                )}=${text_attr(originalColNames[k] || k)}${position_setter(
-                  position_field,
-                  maxpos
-                )}`,
+                )}=${text_attr(
+                  originalColNames[hdrName] || hdrName
+                )}${position_setter(position_field, maxpos)}`,
               },
               i({ class: "fas fa-plus-circle mr-1" }),
               "Add new card"
@@ -456,15 +473,58 @@ const run = async (
           )
       )
     );
-  });
+  };
+  let inner;
+  if (swimlane_field) {
+    const slField = fields.find((f) => f.name === swimlane_field);
+    const dvs = await slField.distinct_values();
+    console.log(dvs);
+    console.log(cols);
+    inner = dvs.map(({ label, value }) => {
+      const mycols = {};
+      Object.keys(cols).map((k) => {
+        mycols[k] = cols[k].filter(({ row }) => row[swimlane_field] === value);
+      });
+      const col_divs = orderedEntries(mycols, column_order || []).map(
+        get_col_divs
+      );
+
+      return div(
+        { class: "kanswimlane" },
+        h5(text(label)),
+        hr(),
+        div(
+          {
+            class: [
+              "kanboard",
+              col_width ? "setwidth" : `row row-cols-${col_divs.length}`,
+            ],
+          },
+          col_divs
+        )
+      );
+    });
+  } else {
+    const col_divs = orderedEntries(cols, column_order || []).map(get_col_divs);
+    inner = div(
+      {
+        class: [
+          "kanboard",
+          col_width ? "setwidth" : `row row-cols-${col_divs.length}`,
+        ],
+      },
+      col_divs
+    );
+  }
   return div(
     { class: ["kanboardwrap", col_width ? "setwidth" : ""] },
-    div({ class: ["kanboard", col_width ? "setwidth" : `row row-cols-${col_divs.length}`] }, col_divs),
-      //pre(JSON.stringify({table, name:table.name}))+
-      style(
-        css({ ncols, col_bg_color, col_text_color, col_width, col_width_units })
-      ),
-      role <= table.min_role_write && script(
+    inner,
+    //pre(JSON.stringify({table, name:table.name}))+
+    style(
+      css({ ncols, col_bg_color, col_text_color, col_width, col_width_units })
+    ),
+    role <= table.min_role_write &&
+      script(
         domReady(
           js(
             table.name,
