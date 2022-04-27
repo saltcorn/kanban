@@ -494,7 +494,10 @@ const run = async (
     inner = dvs.map(({ label, value }) => {
       const mycols = {};
       Object.keys(cols).map((k) => {
-        mycols[k] = cols[k].filter(({ row }) => row[swimlane_field] === value);
+        mycols[k] = cols[k].filter(
+          ({ row }) =>
+            row[swimlane_field] === value || (!value && !row[swimlane_field])
+        );
       });
       const col_divs = orderedEntries(mycols, column_order || []).map(
         get_col_divs
