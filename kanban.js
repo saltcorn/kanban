@@ -532,7 +532,7 @@ const run = async (
         hr(),
         div(
           {
-            class: "kanswimcontents",
+            class: "kanswimcontents container ps-3 pe-2",
             style: swimlane_height
               ? { height: swimlane_height + "px" }
               : undefined,
