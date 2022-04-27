@@ -104,6 +104,11 @@ const configuration_workflow = () =>
                 },
               },
               {
+                name: "create_at_top",
+                label: "Create at top",
+                type: "Bool",
+              },
+              {
                 name: "col_width",
                 label: "Column width",
                 type: "Integer",
@@ -374,6 +379,7 @@ const run = async (
     disable_column_reordering,
     swimlane_field,
     swimlane_height,
+    create_at_top,
   },
   state,
   extraArgs
@@ -427,66 +433,81 @@ const run = async (
   const sortCol = position_field
     ? (vs) => vs.sort((a, b) => a.row[position_field] - b.row[position_field])
     : (vs) => vs;
-  const get_col_divs = ([hdrName, vs]) => {
-    let maxpos = -10000;
-    return div(
-      { class: ["kancolwrap", col_width ? "setwidth" : "col"] },
-      div(
-        {
-          class: [
-            "kancol card",
-            `p-${typeof column_padding === "undefined" ? 1 : column_padding}`,
-          ],
-        },
+  const get_col_divs =
+    (swimVal) =>
+    ([hdrName, vs]) => {
+      let maxpos = -10000;
+      href = `/view/${text(view_to_create)}?${text_attr(
+        column_field
+      )}=${text_attr(originalColNames[hdrName] || hdrName)}${position_setter(
+        position_field,
+        maxpos
+      )}${swimlane_field ? `${swimlane_field}=${swimVal}` : ""}`;
+      return div(
+        { class: ["kancolwrap", col_width ? "setwidth" : "col"] },
         div(
-          { class: "card-header" },
-          h6({ class: "card-title" }, text_attr(hdrName))
-        ),
-        div(
-          { class: "kancontainer", "data-column-value": text_attr(hdrName) },
+          {
+            class: [
+              "kancol card",
+              `p-${typeof column_padding === "undefined" ? 1 : column_padding}`,
+            ],
+          },
           div(
-            {
-              class: "kancard kancard-empty-placeholder",
-            },
-            i("(empty)")
-          ),
-          sortCol(vs || []).map(({ row, html }) => {
-            if (position_field && row[position_field] > maxpos)
-              maxpos = row[position_field];
-            return (
-              div(
+            { class: "card-header d-flex justify-content-between" },
+            h6({ class: "card-title" }, text_attr(hdrName)),
+            view_to_create &&
+              role <= table.min_role_write &&
+              create_at_top &&
+              a(
                 {
-                  class: "kancard card",
-                  "data-id": text(row.id),
-                  ...(expand_view && {
-                    onClick: `href_to('/view/${expand_view}?id=${row.id}')`,
-                  }),
+                  class: "card-link",
+                  href,
                 },
-                html
-              ) + "\n"
-            );
-          })
-        ),
-        view_to_create &&
-          role <= table.min_role_write &&
+                i({ class: "fas fa-plus-circle" })
+              )
+          ),
           div(
-            { class: "card-footer" },
-            a(
+            { class: "kancontainer", "data-column-value": text_attr(hdrName) },
+            div(
               {
-                class: "card-link",
-                href: `/view/${text(view_to_create)}?${text_attr(
-                  column_field
-                )}=${text_attr(
-                  originalColNames[hdrName] || hdrName
-                )}${position_setter(position_field, maxpos)}`,
+                class: "kancard kancard-empty-placeholder",
               },
-              i({ class: "fas fa-plus-circle mr-1" }),
-              "Add new card"
+              i("(empty)")
+            ),
+            sortCol(vs || []).map(({ row, html }) => {
+              if (position_field && row[position_field] > maxpos)
+                maxpos = row[position_field];
+              return (
+                div(
+                  {
+                    class: "kancard card",
+                    "data-id": text(row.id),
+                    ...(expand_view && {
+                      onClick: `href_to('/view/${expand_view}?id=${row.id}')`,
+                    }),
+                  },
+                  html
+                ) + "\n"
+              );
+            })
+          ),
+          view_to_create &&
+            role <= table.min_role_write &&
+            !create_at_top &&
+            div(
+              { class: "card-footer" },
+              a(
+                {
+                  class: "card-link",
+                  href,
+                },
+                i({ class: "fas fa-plus-circle mr-1" }),
+                "Add new card"
+              )
             )
-          )
-      )
-    );
-  };
+        )
+      );
+    };
   let inner;
   if (swimlane_field) {
     const slField = fields.find((f) => f.name === swimlane_field);
@@ -500,7 +521,7 @@ const run = async (
         );
       });
       const col_divs = orderedEntries(mycols, column_order || []).map(
-        get_col_divs
+        get_col_divs(value)
       );
 
       return div(
@@ -529,7 +550,9 @@ const run = async (
       );
     });
   } else {
-    const col_divs = orderedEntries(cols, column_order || []).map(get_col_divs);
+    const col_divs = orderedEntries(cols, column_order || []).map(
+      get_col_divs(null)
+    );
     inner = div(
       {
         class: [
