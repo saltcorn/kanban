@@ -8,6 +8,7 @@ const {
   text,
   div,
   h5,
+  h6,
   style,
   a,
   script,
@@ -232,7 +233,7 @@ const css = ({
     padding: 2px 2px 4px;
     border: none;
   }
-  .kancol .card-header h5 {
+  .kancol .card-header h6 {
     margin-bottom: 0px;
   }
   .kancolwrap:nth-child(1) {
@@ -264,6 +265,18 @@ const css = ({
   }
   .kancard-empty-placeholder:only-child { 
     display:block
+  }
+  .kanswimcontents {
+    overflow-y: scroll;
+    overflow-x: clip;
+  }
+  .kanswimlane h5.swimlanehdr {
+    margin-top: 5px;
+    margin-bottom: 0px;    
+  }
+  .kanswimlane hr {
+    margin: 0.2rem 0;    
+
   }
 `;
 
@@ -427,7 +440,7 @@ const run = async (
         },
         div(
           { class: "card-header" },
-          h5({ class: "card-title" }, text_attr(hdrName))
+          h6({ class: "card-title" }, text_attr(hdrName))
         ),
         div(
           { class: "kancontainer", "data-column-value": text_attr(hdrName) },
@@ -478,8 +491,6 @@ const run = async (
   if (swimlane_field) {
     const slField = fields.find((f) => f.name === swimlane_field);
     const dvs = await slField.distinct_values();
-    console.log(dvs);
-    console.log(cols);
     inner = dvs.map(({ label, value }) => {
       const mycols = {};
       Object.keys(cols).map((k) => {
@@ -490,17 +501,27 @@ const run = async (
       );
 
       return div(
-        { class: "kanswimlane" },
-        h5(text(label)),
+        {
+          class: "kanswimlane",
+        },
+        h5({ class: "swimlanehdr" }, text(label)),
         hr(),
         div(
           {
-            class: [
-              "kanboard",
-              col_width ? "setwidth" : `row row-cols-${col_divs.length}`,
-            ],
+            class: "kanswimcontents",
+            style: swimlane_height
+              ? { height: swimlane_height + "px" }
+              : undefined,
           },
-          col_divs
+          div(
+            {
+              class: [
+                "kanboard",
+                col_width ? "setwidth" : `row row-cols-${col_divs.length}`,
+              ],
+            },
+            col_divs
+          )
         )
       );
     });
