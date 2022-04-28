@@ -290,9 +290,10 @@ const js = (
   column_field,
   viewname,
   reload_on_drag,
-  disable_column_reordering
+  disable_column_reordering,
+  swimlane_field
 ) => `
-
+  const swimlane_field=${JSON.stringify(swimlane_field)};
   var getColumnValues=function() {
     var vs = []
     $('.kancontainer').each(function(){
@@ -329,6 +330,9 @@ const js = (
     var dataObj={ id: $(el).attr('data-id'),
                   before_id: before ? $(before).attr('data-id') : null }
     dataObj.${column_field}=$(target).attr('data-column-value')
+    if(swimlane_field) {
+      dataObj[swimlane_field]=$(target).attr('data-swimlane-value')
+    }
     view_post('${viewname}', 'set_card_value', dataObj, onDone);
   })
 `;
@@ -467,7 +471,13 @@ const run = async (
               )
           ),
           div(
-            { class: "kancontainer", "data-column-value": text_attr(hdrName) },
+            {
+              class: "kancontainer",
+              "data-column-value": text_attr(hdrName),
+              "data-swimlane-value": swimlane_field
+                ? text_attr(swimVal)
+                : undefined,
+            },
             div(
               {
                 class: "kancard kancard-empty-placeholder",
@@ -578,7 +588,8 @@ const run = async (
             column_field,
             viewname,
             reload_on_drag,
-            disable_column_reordering
+            disable_column_reordering,
+            swimlane_field
           )
         )
       )
@@ -589,7 +600,7 @@ const run = async (
 const set_card_value = async (
   table_id,
   viewname,
-  { column_field, position_field },
+  { column_field, position_field, swimlane_field },
   body,
   { req }
 ) => {
@@ -610,6 +621,7 @@ const set_card_value = async (
     });
     colval = refrow.id;
   }
+  const updRow = { [column_field]: colval };
   if (position_field) {
     var newpos;
     const exrows = await table.getRows(
@@ -630,15 +642,12 @@ const set_card_value = async (
         newpos = exrows[exrows.length - 1][position_field] + 1;
       else newpos = Math.random();
     }
-
-    await table.updateRow(
-      { [column_field]: colval, [position_field]: newpos },
-      parseInt(body.id)
-    );
-  } else {
-    await table.updateRow({ [column_field]: colval }, parseInt(body.id));
+    updRow[position_field] = newpos;
   }
-
+  if (swimlane_field) {
+    updRow[swimlane_field] = body[swimlane_field] || null;
+  }
+  await table.updateRow(updRow, parseInt(body.id));
   return { json: { success: "ok" } };
 };
 
