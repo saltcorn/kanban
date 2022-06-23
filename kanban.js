@@ -437,6 +437,10 @@ const run = async (
   const sortCol = position_field
     ? (vs) => vs.sort((a, b) => a.row[position_field] - b.row[position_field])
     : (vs) => vs;
+  let state_fields_qs = "";
+  Object.entries(state).forEach(([k, v]) => {
+    state_fields_qs += `&${encodeURIComponent(k)}=${encodeURIComponent(v)}`;
+  });
   const get_col_divs =
     (swimVal) =>
     ([hdrName, vs]) => {
@@ -446,7 +450,9 @@ const run = async (
       )}=${text_attr(originalColNames[hdrName] || hdrName)}${position_setter(
         position_field,
         maxpos
-      )}${swimlane_field ? `${swimlane_field}=${swimVal}` : ""}`;
+      )}${
+        swimlane_field ? `&${swimlane_field}=${swimVal}` : ""
+      }${state_fields_qs}`;
       return div(
         { class: ["kancolwrap", col_width ? "setwidth" : "col"] },
         div(
