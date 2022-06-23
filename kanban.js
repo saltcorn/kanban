@@ -50,7 +50,18 @@ const configuration_workflow = () =>
               state_fields.every((sf) => !sf.required)
           );
           const create_view_opts = create_views.map((v) => v.name);
-
+          const swimlaneOptions = fields.map((f) => f.name);
+          for (const field of fields) {
+            if (field.is_fkey) {
+              const reftable = Table.findOne({
+                name: field.reftable_name,
+              });
+              const reffields = await reftable.getFields();
+              reffields.forEach((f) =>
+                swimlaneOptions.push(`${field.name}.${f.name}`)
+              );
+            }
+          }
           return new Form({
             fields: [
               {
@@ -166,7 +177,7 @@ const configuration_workflow = () =>
                 label: "Swimlane field",
                 type: "String",
                 attributes: {
-                  options: fields.map((f) => f.name).join(),
+                  options: swimlaneOptions,
                 },
               },
               {
@@ -174,7 +185,7 @@ const configuration_workflow = () =>
                 label: "Swimlane height px",
                 type: "Integer",
                 default: 300,
-                showIf: { swimlane_field: fields.map((f) => f.name) },
+                showIf: { swimlane_field: swimlaneOptions },
               },
             ],
           });
@@ -499,7 +510,7 @@ const run = async (
                     class: "kancard card",
                     "data-id": text(row.id),
                     ...(expand_view && {
-                      onClick: `href_to('/view/${expand_view}?id=${row.id}')`,
+                      onClick: `ajax_modal('/view/${expand_view}?id=${row.id}')`,
                     }),
                   },
                   html
