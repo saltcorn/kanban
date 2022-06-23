@@ -51,7 +51,7 @@ const configuration_workflow = () =>
           );
           const create_view_opts = create_views.map((v) => v.name);
           const swimlaneOptions = fields.map((f) => f.name);
-          for (const field of fields) {
+          /*for (const field of fields) {
             if (field.is_fkey) {
               const reftable = Table.findOne({
                 name: field.reftable_name,
@@ -61,7 +61,7 @@ const configuration_workflow = () =>
                 swimlaneOptions.push(`${field.name}.${f.name}`)
               );
             }
-          }
+          }*/
           return new Form({
             fields: [
               {
