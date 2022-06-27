@@ -51,7 +51,7 @@ const configuration_workflow = () =>
           );
           const create_view_opts = create_views.map((v) => v.name);
           const swimlaneOptions = fields.map((f) => f.name);
-          /*for (const field of fields) {
+          for (const field of fields) {
             if (field.is_fkey) {
               const reftable = Table.findOne({
                 name: field.reftable_name,
@@ -61,7 +61,7 @@ const configuration_workflow = () =>
                 swimlaneOptions.push(`${field.name}.${f.name}`)
               );
             }
-          }*/
+          }
           return new Form({
             fields: [
               {
@@ -537,8 +537,21 @@ const run = async (
     };
   let inner;
   if (swimlane_field) {
-    const slField = fields.find((f) => f.name === swimlane_field);
-    const dvs = await slField.distinct_values();
+    let dv = [];
+    if (swimlane_field.includes(".")) {
+      const kpath = swimlane_field.split(".");
+      if (kpath.length === 2) {
+        const [refNm, targetNm] = kpath;
+        const refField = fields.find((f) => f.name === refNm);
+        const refTable = Table.findOne({ name: refField.reftable_name });
+        const refFields = await refTable.getFields();
+        const target = refFields.find((f) => f.name === targetNm);
+        dvs = await target.distinct_values();
+      }
+    } else {
+      const slField = fields.find((f) => f.name === swimlane_field);
+      dvs = await slField.distinct_values();
+    }
     inner = dvs.map(({ label, value }) => {
       const mycols = {};
       Object.keys(cols).map((k) => {
@@ -661,7 +674,7 @@ const set_card_value = async (
     }
     updRow[position_field] = newpos;
   }
-  if (swimlane_field) {
+  if (swimlane_field && !swimlane_field.includes(".")) {
     updRow[swimlane_field] = body[swimlane_field] || null;
   }
   await table.updateRow(updRow, parseInt(body.id));
