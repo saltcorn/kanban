@@ -57,9 +57,18 @@ const configuration_workflow = () =>
                 name: field.reftable_name,
               });
               const reffields = await reftable.getFields();
-              reffields.forEach((f) =>
-                swimlaneOptions.push(`${field.name}.${f.name}`)
-              );
+              for (const f of reffields) {
+                swimlaneOptions.push(`${field.name}.${f.name}`);
+                if (f.is_fkey) {
+                  const reftable2 = Table.findOne({
+                    name: f.reftable_name,
+                  });
+                  const reffields2 = await reftable2.getFields();
+                  reffields2.forEach((f2) => {
+                    swimlaneOptions.push(`${field.name}.${f.name}.${f2.name}`);
+                  });
+                }
+              }
             }
           }
           return new Form({
@@ -537,7 +546,7 @@ const run = async (
     };
   let inner;
   if (swimlane_field) {
-    let dv = [];
+    let dvs = [];
     if (swimlane_field.includes(".")) {
       const kpath = swimlane_field.split(".");
       if (kpath.length === 2) {
@@ -546,6 +555,17 @@ const run = async (
         const refTable = Table.findOne({ name: refField.reftable_name });
         const refFields = await refTable.getFields();
         const target = refFields.find((f) => f.name === targetNm);
+        dvs = await target.distinct_values();
+      } else if (kpath.length === 3) {
+        const [refNm, throughNm, targetNm] = kpath;
+        const refField = fields.find((f) => f.name === refNm);
+        const refTable = Table.findOne({ name: refField.reftable_name });
+        const refFields = await refTable.getFields();
+        const through = refFields.find((f) => f.name === throughNm);
+        const throughTable = Table.findOne({ name: through.reftable_name });
+        const throughFields = await throughTable.getFields();
+        const target = throughFields.find((f) => f.name === targetNm);
+
         dvs = await target.distinct_values();
       }
     } else {
