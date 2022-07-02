@@ -549,6 +549,8 @@ const run = async (
     let dvs = [];
     let swimlane_accesssor = (r) => r[swimlane_field];
     if (swimlane_field.includes(".")) {
+      const joinFields = {};
+      const joinData = {};
       const kpath = swimlane_field.split(".");
       if (kpath.length === 2) {
         const [refNm, targetNm] = kpath;
@@ -557,7 +559,10 @@ const run = async (
         const refFields = await refTable.getFields();
         const target = refFields.find((f) => f.name === targetNm);
         dvs = await target.distinct_values();
-        swimlane_accesssor = (row) => row[refNm];
+        joinFields[`_swimlane`] = {
+          ref: refNm,
+          target: targetNm,
+        };
       } else if (kpath.length === 3) {
         const [refNm, throughNm, targetNm] = kpath;
         const refField = fields.find((f) => f.name === refNm);
@@ -569,7 +574,19 @@ const run = async (
         const target = throughFields.find((f) => f.name === targetNm);
 
         dvs = await target.distinct_values();
+        joinFields[`_swimlane`] = {
+          ref: refNm,
+          through: throughNm,
+          target: targetNm,
+        };
       }
+      swimlane_accesssor = (row) => joinData[row.id]._swimlane;
+      //do the query and create joinData
+      //TODO also set where from state
+      const joinRows = await table.getJoinedRows({ joinFields });
+      joinRows.forEach((r) => {
+        joinData[r.id] = r;
+      });
     } else {
       const slField = fields.find((f) => f.name === swimlane_field);
       dvs = await slField.distinct_values();
