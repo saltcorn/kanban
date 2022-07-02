@@ -18,6 +18,10 @@ const {
   hr,
   text_attr,
 } = require("@saltcorn/markup/tags");
+const {
+  stateFieldsToWhere,
+  readState,
+} = require("@saltcorn/data//plugin-helper");
 
 const configuration_workflow = () =>
   new Workflow({
@@ -370,17 +374,6 @@ const assign_random_positions = async (rows, position_field, table_id) => {
     }
   }
 };
-const readState = (state, fields) => {
-  fields.forEach((f) => {
-    const current = state[f.name];
-    if (typeof current !== "undefined") {
-      if (f.type.read) state[f.name] = f.type.read(current);
-      else if (f.type === "Key")
-        state[f.name] = current === "null" ? null : +current;
-    }
-  });
-  return state;
-};
 
 const position_setter = (position_field, maxpos) =>
   position_field ? `&${position_field}=${Math.round(maxpos) + 2}` : "";
@@ -547,7 +540,10 @@ const run = async (
   let inner;
   if (swimlane_field) {
     let dvs = [];
+    let swimlane_accesssor = (r) => r[swimlane_field];
     if (swimlane_field.includes(".")) {
+      const joinFields = {};
+      const joinData = {};
       const kpath = swimlane_field.split(".");
       if (kpath.length === 2) {
         const [refNm, targetNm] = kpath;
@@ -556,6 +552,10 @@ const run = async (
         const refFields = await refTable.getFields();
         const target = refFields.find((f) => f.name === targetNm);
         dvs = await target.distinct_values();
+        joinFields[`_swimlane`] = {
+          ref: refNm,
+          target: targetNm,
+        };
       } else if (kpath.length === 3) {
         const [refNm, throughNm, targetNm] = kpath;
         const refField = fields.find((f) => f.name === refNm);
@@ -567,17 +567,34 @@ const run = async (
         const target = throughFields.find((f) => f.name === targetNm);
 
         dvs = await target.distinct_values();
+        joinFields[`_swimlane`] = {
+          ref: refNm,
+          through: throughNm,
+          target: targetNm,
+        };
       }
+      swimlane_accesssor = (row) => joinData[row.id]._swimlane;
+      //do the query and create joinData
+      //TODO also set where from state
+      const qstate = await stateFieldsToWhere({ fields, state });
+
+      const joinRows = await table.getJoinedRows({ where: qstate, joinFields });
+      joinRows.forEach((r) => {
+        joinData[r.id] = r;
+      });
     } else {
       const slField = fields.find((f) => f.name === swimlane_field);
       dvs = await slField.distinct_values();
     }
+    //console.log(cols.ToDo[0].row, swimlane_accesssor(cols.ToDo[0].row));
     inner = dvs.map(({ label, value }) => {
       const mycols = {};
+      //console.log({ label, value });
       Object.keys(cols).map((k) => {
         mycols[k] = cols[k].filter(
           ({ row }) =>
-            row[swimlane_field] === value || (!value && !row[swimlane_field])
+            swimlane_accesssor(row) === value ||
+            (!value && !swimlane_accesssor(row))
         );
       });
       const col_divs = orderedEntries(mycols, column_order || []).map(
