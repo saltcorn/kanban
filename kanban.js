@@ -18,6 +18,10 @@ const {
   hr,
   text_attr,
 } = require("@saltcorn/markup/tags");
+const {
+  stateFieldsToWhere,
+  readState,
+} = require("@saltcorn/data//plugin-helper");
 
 const configuration_workflow = () =>
   new Workflow({
@@ -370,17 +374,6 @@ const assign_random_positions = async (rows, position_field, table_id) => {
     }
   }
 };
-const readState = (state, fields) => {
-  fields.forEach((f) => {
-    const current = state[f.name];
-    if (typeof current !== "undefined") {
-      if (f.type.read) state[f.name] = f.type.read(current);
-      else if (f.type === "Key")
-        state[f.name] = current === "null" ? null : +current;
-    }
-  });
-  return state;
-};
 
 const position_setter = (position_field, maxpos) =>
   position_field ? `&${position_field}=${Math.round(maxpos) + 2}` : "";
@@ -583,7 +576,9 @@ const run = async (
       swimlane_accesssor = (row) => joinData[row.id]._swimlane;
       //do the query and create joinData
       //TODO also set where from state
-      const joinRows = await table.getJoinedRows({ joinFields });
+      const qstate = await stateFieldsToWhere({ fields, state });
+
+      const joinRows = await table.getJoinedRows({ where: qstate, joinFields });
       joinRows.forEach((r) => {
         joinData[r.id] = r;
       });
