@@ -547,6 +547,7 @@ const run = async (
   let inner;
   if (swimlane_field) {
     let dvs = [];
+    let swimlane_accesssor = (r) => r[swimlane_field];
     if (swimlane_field.includes(".")) {
       const kpath = swimlane_field.split(".");
       if (kpath.length === 2) {
@@ -556,6 +557,7 @@ const run = async (
         const refFields = await refTable.getFields();
         const target = refFields.find((f) => f.name === targetNm);
         dvs = await target.distinct_values();
+        swimlane_accesssor = (row) => row[refNm];
       } else if (kpath.length === 3) {
         const [refNm, throughNm, targetNm] = kpath;
         const refField = fields.find((f) => f.name === refNm);
@@ -572,12 +574,15 @@ const run = async (
       const slField = fields.find((f) => f.name === swimlane_field);
       dvs = await slField.distinct_values();
     }
+    //console.log(cols.ToDo[0].row, swimlane_accesssor(cols.ToDo[0].row));
     inner = dvs.map(({ label, value }) => {
       const mycols = {};
+      //console.log({ label, value });
       Object.keys(cols).map((k) => {
         mycols[k] = cols[k].filter(
           ({ row }) =>
-            row[swimlane_field] === value || (!value && !row[swimlane_field])
+            swimlane_accesssor(row) === value ||
+            (!value && !swimlane_accesssor(row))
         );
       });
       const col_divs = orderedEntries(mycols, column_order || []).map(
