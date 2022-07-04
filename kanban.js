@@ -551,7 +551,13 @@ const run = async (
         const refTable = Table.findOne({ name: refField.reftable_name });
         const refFields = await refTable.getFields();
         const target = refFields.find((f) => f.name === targetNm);
-        dvs = await target.distinct_values();
+        if (state[refNm]) {
+          dvs = await target.distinct_values(extraArgs.req, {
+            [refTable.pk_name]: state[refNm],
+          });
+        } else {
+          dvs = await target.distinct_values(extraArgs.req);
+        }
         joinFields[`_swimlane`] = {
           ref: refNm,
           target: targetNm,
