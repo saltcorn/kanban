@@ -555,6 +555,7 @@ const run = async (
           dvs = await target.distinct_values(extraArgs.req, {
             [refTable.pk_name]: state[refNm],
           });
+          dvs = dvs.filter((dv) => dv.value);
         } else {
           dvs = await target.distinct_values(extraArgs.req);
         }
