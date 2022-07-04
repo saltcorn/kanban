@@ -585,6 +585,9 @@ const run = async (
     } else {
       const slField = fields.find((f) => f.name === swimlane_field);
       dvs = await slField.distinct_values();
+      if (state[swimlane_field]) {
+        dvs = dvs.filter((dv) => dv.value === state[swimlane_field]);
+      }
     }
     //console.log(cols.ToDo[0].row, swimlane_accesssor(cols.ToDo[0].row));
     inner = dvs.map(({ label, value }) => {
