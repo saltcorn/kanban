@@ -548,7 +548,7 @@ const run = async (
     let dvs = [];
     let swimlane_accesssor = (r) => r[swimlane_field];
     let filterColumnsField;
-    let columnFilterData = {};
+    let columnFilterData;
     if (swimlane_field.includes(".")) {
       const joinData = {};
       const joinFields = {};
