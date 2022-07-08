@@ -60,17 +60,23 @@ const configuration_workflow = () =>
               const reftable = Table.findOne({
                 name: field.reftable_name,
               });
-              const reffields = await reftable.getFields();
-              for (const f of reffields) {
-                swimlaneOptions.push(`${field.name}.${f.name}`);
-                if (f.is_fkey) {
-                  const reftable2 = Table.findOne({
-                    name: f.reftable_name,
-                  });
-                  const reffields2 = await reftable2.getFields();
-                  reffields2.forEach((f2) => {
-                    swimlaneOptions.push(`${field.name}.${f.name}.${f2.name}`);
-                  });
+              if (reftable) {
+                const reffields = await reftable.getFields();
+                for (const f of reffields) {
+                  swimlaneOptions.push(`${field.name}.${f.name}`);
+                  if (f.is_fkey) {
+                    const reftable2 = Table.findOne({
+                      name: f.reftable_name,
+                    });
+                    if (reftable2) {
+                      const reffields2 = await reftable2.getFields();
+                      reffields2.forEach((f2) => {
+                        swimlaneOptions.push(
+                          `${field.name}.${f.name}.${f2.name}`
+                        );
+                      });
+                    }
+                  }
                 }
               }
             }
