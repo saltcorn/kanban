@@ -547,9 +547,11 @@ const run = async (
   if (swimlane_field) {
     let dvs = [];
     let swimlane_accesssor = (r) => r[swimlane_field];
+    let filterColumnsField;
+    let columnFilterData = {};
     if (swimlane_field.includes(".")) {
-      const joinFields = {};
       const joinData = {};
+      const joinFields = {};
       const kpath = swimlane_field.split(".");
       if (kpath.length === 2) {
         const [refNm, targetNm] = kpath;
@@ -585,10 +587,29 @@ const run = async (
           through: throughNm,
           target: targetNm,
         };
+        if (refNm === column_field) {
+          // in this case we only want to show columns for this field value
+          filterColumnsField = refNm;
+          const colrows = await refTable.getJoinedRows({
+            joinFields: {
+              _column: {
+                ref: throughNm,
+                target: targetNm,
+              },
+            },
+          });
+          columnFilterData = {};
+          colrows.forEach((colrow) => {
+            if (!columnFilterData[colrow._column])
+              columnFilterData[colrow._column] = new Set();
+            columnFilterData[colrow._column].add(
+              colrow[refField.attributes.summary_field]
+            );
+          });
+        }
       }
       swimlane_accesssor = (row) => joinData[row.id]._swimlane;
       //do the query and create joinData
-      //TODO also set where from state
       const qstate = await stateFieldsToWhere({ fields, state });
 
       const joinRows = await table.getJoinedRows({ where: qstate, joinFields });
@@ -606,17 +627,24 @@ const run = async (
     inner = dvs.map(({ label, value }) => {
       const mycols = {};
       //console.log({ label, value });
-      Object.keys(cols).map((k) => {
+      Object.keys(cols).forEach((k) => {
+        if (
+          columnFilterData &&
+          (!columnFilterData[value] || !columnFilterData[value].has(k))
+        )
+          return;
         mycols[k] = cols[k].filter(
           ({ row }) =>
             swimlane_accesssor(row) === value ||
             (!value && !swimlane_accesssor(row))
         );
       });
+
       const col_divs = orderedEntries(mycols, column_order || []).map(
         get_col_divs(value)
       );
 
+      if (col_divs.length === 0) return "";
       return div(
         {
           class: "kanswimlane",
