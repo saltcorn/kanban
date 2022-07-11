@@ -424,7 +424,24 @@ const run = async (
   const sresps = await sview.runMany(state, extraArgs);
   if (position_field)
     await assign_random_positions(sresps, position_field, table_id);
-  var cols = groupBy(sresps, ({ row }) => row[column_field]);
+  let cols = groupBy(sresps, ({ row }) => row[column_field]);
+  let restrictColsTo;
+  //filter columns in some cases
+  for (const [k, v] of Object.entries(state)) {
+    const kpath = k.split(".");
+    if (kpath.length === 4) {
+      const [jtNm, jFieldNm, tblName, lblField] = kpath;
+      if (jtNm === table.name && jFieldNm === column_field) {
+        //bingo.
+
+        const validColRows = await Table.findOne({ name: tblName }).getRows({
+          [lblField]: v,
+        });
+        restrictColsTo = new Set(validColRows.map((r) => r.id));
+      }
+    }
+  }
+
   let originalColNames = {};
   const column_field_field = fields.find((f) => f.name === column_field);
   if (
@@ -447,7 +464,8 @@ const run = async (
       if (cols[r.id]) {
         cols[r[column_field_field.attributes.summary_field]] = cols[r.id];
         delete cols[r.id];
-      } else cols[r[column_field_field.attributes.summary_field]] = [];
+      } else if (!restrictColsTo || restrictColsTo.has(r.id))
+        cols[r[column_field_field.attributes.summary_field]] = [];
       originalColNames[r[column_field_field.attributes.summary_field]] = r.id;
     });
   }
