@@ -1,6 +1,6 @@
 {
   "name": "@saltcorn/kanban",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "description": "Kanban view plugin",
   "main": "kanban.js",
   "dependencies": {
