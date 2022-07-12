@@ -139,6 +139,15 @@ const configuration_workflow = () =>
                 type: "Bool",
               },
               {
+                name: "create_view_display",
+                label: "Display create view as",
+                type: "String",
+                required: true,
+                attributes: {
+                  options: "Link,Popup", //Embedded
+                },
+              },
+              {
                 name: "col_width",
                 label: "Column width",
                 type: "Integer",
@@ -383,6 +392,7 @@ const assign_random_positions = async (rows, position_field, table_id) => {
 
 const position_setter = (position_field, maxpos) =>
   position_field ? `&${position_field}=${Math.round(maxpos) + 2}` : "";
+
 const run = async (
   table_id,
   viewname,
@@ -403,6 +413,7 @@ const run = async (
     swimlane_field,
     swimlane_height,
     create_at_top,
+    create_view_display,
   },
   state,
   extraArgs
@@ -482,7 +493,7 @@ const run = async (
     (swimVal) =>
     ([hdrName, vs]) => {
       let maxpos = -10000;
-      href = `/view/${text(view_to_create)}?${text_attr(
+      let href = `/view/${text(view_to_create)}?${text_attr(
         column_field
       )}=${text_attr(originalColNames[hdrName] || hdrName)}${position_setter(
         position_field,
@@ -490,6 +501,8 @@ const run = async (
       )}${
         swimlane_field ? `&${swimlane_field}=${swimVal}` : ""
       }${state_fields_qs}`;
+      if (create_view_display === "Popup")
+        href = `javascript:ajax_modal('${href}')`;
       return div(
         { class: ["kancolwrap", col_width ? "setwidth" : "col"] },
         div(
