@@ -139,6 +139,12 @@ const configuration_workflow = () =>
                 type: "Bool",
               },
               {
+                name: "create_label",
+                label: "Label to create",
+                default: "Add new card",
+                type: "String",
+              },
+              {
                 name: "create_view_display",
                 label: "Display create view as",
                 type: "String",
@@ -414,6 +420,7 @@ const run = async (
     swimlane_height,
     create_at_top,
     create_view_display,
+    create_label,
   },
   state,
   extraArgs
@@ -523,7 +530,7 @@ const run = async (
                   class: "card-link",
                   href,
                 },
-                i({ class: "fas fa-plus-circle" })
+                i({ class: "fas fa-plus-circle me-1" })
               )
           ),
           div(
@@ -567,8 +574,8 @@ const run = async (
                   class: "card-link",
                   href,
                 },
-                i({ class: "fas fa-plus-circle mr-1" }),
-                "Add new card"
+                i({ class: "fas fa-plus-circle me-1" }),
+                create_label || "Add new card"
               )
             )
         )
