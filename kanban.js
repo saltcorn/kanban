@@ -459,7 +459,7 @@ const run = async (
       }
     }
   }
-
+  const use_column_order = [...new Set(column_order)];
   let originalColNames = {};
   const column_field_field = fields.find((f) => f.name === column_field);
   if (
@@ -678,7 +678,7 @@ const run = async (
         );
       });
 
-      const col_divs = orderedEntries(mycols, column_order || []).map(
+      const col_divs = orderedEntries(mycols, use_column_order || []).map(
         get_col_divs(value)
       );
 
@@ -709,7 +709,7 @@ const run = async (
       );
     });
   } else {
-    const col_divs = orderedEntries(cols, column_order || []).map(
+    const col_divs = orderedEntries(cols, use_column_order || []).map(
       get_col_divs(null)
     );
     inner = div(
@@ -810,7 +810,7 @@ const set_col_order = async (table_id, viewname, config, body, { req }) => {
   }
   const view = await View.findOne({ name: viewname });
   const newConfig = {
-    configuration: { ...view.configuration, column_order: body },
+    configuration: { ...view.configuration, column_order: [...new Set(body)] },
   };
   await View.update(newConfig, view.id);
   return { json: { success: "ok", newconfig: newConfig } };
