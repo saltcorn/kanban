@@ -35,7 +35,7 @@ const configuration_workflow = () =>
           const show_views = await View.find_table_views_where(
             context.table_id,
             ({ state_fields, viewtemplate, viewrow }) =>
-              (viewtemplate.runMany || viewtemplate.renderRows) &&
+              (viewtemplate?.runMany || viewtemplate?.renderRows) &&
               viewrow.name !== context.viewname
           );
           const show_view_opts = show_views.map((v) => v.name);
