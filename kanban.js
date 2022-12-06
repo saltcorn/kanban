@@ -745,6 +745,33 @@ const run = async (
   );
 };
 
+const connectedObjects = async ({
+  create_view_display,
+  view_to_create,
+  show_view,
+  expand_view,
+}) => {
+  const linkedViews = [];
+  const embeddedViews = [];
+  const viewToCreate = view_to_create
+    ? View.findOne({ name: view_to_create })
+    : undefined;
+  if (viewToCreate) {
+    if (create_view_display === "Link") linkedViews.push(viewToCreate);
+    else embeddedViews.push(viewToCreate);
+  }
+  const showView = show_view ? View.findOne({ name: show_view }) : undefined;
+  if (showView) embeddedViews.push(showView);
+  const expandView = expand_view
+    ? View.findOne({ name: expand_view })
+    : undefined;
+  if (expandView) embeddedViews.push(expandView);
+  return {
+    embeddedViews,
+    linkedViews,
+  };
+};
+
 //card has been dragged btw columns
 const set_card_value = async (
   table_id,
@@ -833,6 +860,7 @@ module.exports = {
       get_state_fields,
       configuration_workflow,
       run,
+      connectedObjects,
       routes: { set_col_order, set_card_value },
     },
   ],
