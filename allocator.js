@@ -28,6 +28,7 @@ const {
   stateFieldsToWhere,
   readState,
 } = require("@saltcorn/data//plugin-helper");
+const moment = require("moment");
 
 const configuration_workflow = () =>
   new Workflow({
@@ -146,6 +147,8 @@ const get_state_fields = async (table_id, viewname, { show_view }) => {
     });
 };
 
+const isWeekend = (date) => ((d) => d === 0 || d === 6)(date.getDay());
+
 const run = async (
   table_id,
   viewname,
@@ -164,6 +167,8 @@ const run = async (
 ) => {
   const tbl = await Table.findOne({ id: table_id });
   const fields = await tbl.getFields();
+  const row_fld = fields.find((f) => f.name === row_field);
+  const col_fld = fields.find((f) => f.name === col_field);
   readState(state, fields);
   const role = extraArgs.req.isAuthenticated()
     ? extraArgs.req.user.role_id
@@ -177,12 +182,47 @@ const run = async (
     );
 
   const allocated_sresps = await sview.runMany(state, extraArgs);
-  const unallocated_sresps = await sview.runMany(
-    { ...state, [row_field]: null, [col_field]: null },
-    extraArgs
-  );
-  const row_vals = new Set([]);
+  let xformCol = (x) => x;
   const col_vals = new Set([]);
+  const row_labels = {};
+  for (const { label, value } of await row_fld.distinct_values()) {
+    row_labels[value] = label;
+  }
+  const col_labels = {};
+
+  if (col_fld.type?.name === "Date") {
+    allocated_sresps.forEach(({ row }) => {
+      if (row[col_field]) {
+        row[col_field] = new Date(row[col_field]).toISOString().split("T")[0];
+      }
+    });
+    if (col_field_format)
+      xformCol = (day) => moment(day).format(col_field_format);
+    if (state["_fromdate_" + col_field] && state["_todate_" + col_field]) {
+      const start = new Date(state["_fromdate_" + col_field]);
+      const end = new Date(state["_todate_" + col_field]);
+      let day = start;
+      while (day <= end) {
+        if (!col_no_weekends || !isWeekend(day)) {
+          const dayStr = day.toISOString().split("T")[0];
+          //const xdayStr = xformCol(dayStr);
+          col_vals.add(dayStr);
+          //rawColValues[xdayStr] = dayStr;
+          col_labels[dayStr] = col_field_format
+            ? moment(day).format(col_field_format)
+            : dayStr;
+        }
+        day = new Date(day);
+        day.setDate(day.getDate() + 1);
+      }
+    }
+  } else
+    for (const { label, value } of await col_fld.distinct_values()) {
+      col_labels[value] = label;
+    }
+
+  const row_vals = new Set([]);
+
   const by_row = {};
   for (const { html, row } of allocated_sresps) {
     const row_val = row[row_field];
@@ -195,17 +235,6 @@ const run = async (
   }
   const cols = [...col_vals];
   const widthPcnt = Math.round(100 / (cols.length + 1));
-
-  const row_fld = fields.find((f) => f.name === row_field);
-  const col_fld = fields.find((f) => f.name === col_field);
-  const row_labels = {};
-  for (const { label, value } of await row_fld.distinct_values()) {
-    row_labels[value] = label;
-  }
-  const col_labels = {};
-  for (const { label, value } of await col_fld.distinct_values()) {
-    col_labels[value] = label;
-  }
 
   const inner = table(
     { class: "kanalloc" },
@@ -316,12 +345,17 @@ const set_card_value = async (
   if (role > table.min_role_write) {
     return { json: { error: "not authorized" } };
   }
-  const cv = body[col_field];
+  const cv = body[col_field]; //
   const rv = body[row_field];
+  const fields = await table.getFields();
+  const col_fld = fields.find((f) => f.name === col_field);
   const updRow = {
     [col_field]: cv === "null" ? null : cv,
     [row_field]: rv === "null" ? null : rv,
   };
+  if (col_fld.type?.name === "Date" && updRow[col_field]) {
+    updRow[col_field] += "T00:00:00.000Z";
+  }
 
   await table.updateRow(updRow, parseInt(body.id));
   return { json: { success: "ok" } };
@@ -336,3 +370,8 @@ module.exports = {
   connectedObjects,
   routes: { set_card_value },
 };
+
+/*to do
+
+1. time cols
+*/
