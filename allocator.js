@@ -194,10 +194,7 @@ const run = async (
     );
   let xformCol = (x) => x;
   const col_vals = new Set([]);
-  const row_labels = {};
-  for (const { label, value } of await row_fld.distinct_values()) {
-    row_labels[value] = label;
-  }
+
   const col_labels = {};
 
   if (col_fld.type?.name === "Date") {
@@ -234,6 +231,12 @@ const run = async (
   const row_vals = new Set([]);
 
   const by_row = {};
+  const row_labels = {};
+  for (const { label, value } of await row_fld.distinct_values()) {
+    row_vals.add(value);
+    row_labels[value] = label;
+    if (!by_row[value]) by_row[value] = {};
+  }
   for (const { html, row } of allocated_sresps) {
     const row_val = row[row_field];
     const col_val = row[col_field];
