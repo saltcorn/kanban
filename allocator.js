@@ -182,6 +182,16 @@ const run = async (
     );
 
   const allocated_sresps = await sview.runMany(state, extraArgs);
+
+  //if state is col or row fld, also get unallocated
+  if (state[row_field])
+    allocated_sresps.push(
+      ...(await sview.runMany({ ...state, [row_field]: null }, extraArgs))
+    );
+  if (state[col_field])
+    allocated_sresps.push(
+      ...(await sview.runMany({ ...state, [col_field]: null }, extraArgs))
+    );
   let xformCol = (x) => x;
   const col_vals = new Set([]);
   const row_labels = {};
