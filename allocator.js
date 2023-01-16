@@ -194,6 +194,7 @@ const run = async (
     by_row[row_val][col_val].push({ html, row });
   }
   const cols = [...col_vals];
+  const widthPcnt = Math.round(100 / (cols.length + 1));
 
   const inner = table(
     thead(
@@ -205,8 +206,25 @@ const run = async (
     tbody(
       Object.entries(by_row).map(([rv, colvs]) =>
         tr(
-          td(rv),
-          cols.map((c) => td((colvs[c] || []).map(({ row, html }) => html)))
+          td({ style: { width: `${widthPcnt}%` } }, rv),
+          cols.map((c) =>
+            td(
+              { style: { width: `${widthPcnt}%` } },
+              (colvs[c] || []).map(
+                ({ row, html }) =>
+                  div(
+                    {
+                      class: "kancard card",
+                      "data-id": text(row.id),
+                      ...(expand_view && {
+                        onClick: `ajax_modal('/view/${expand_view}?id=${row.id}')`,
+                      }),
+                    },
+                    html
+                  ) + "\n"
+              )
+            )
+          )
         )
       )
     )
