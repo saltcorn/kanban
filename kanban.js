@@ -842,26 +842,13 @@ const set_col_order = async (table_id, viewname, config, body, { req }) => {
   await View.update(newConfig, view.id);
   return { json: { success: "ok", newconfig: newConfig } };
 };
+
 module.exports = {
-  headers: [
-    {
-      script: "/plugins/public/kanban/dragula.min.js",
-    },
-    {
-      css: "/plugins/public/kanban/dragula.min.css",
-    },
-  ],
-  sc_plugin_api_version: 1,
-  plugin_name: "kanban",
-  viewtemplates: [
-    {
-      name: "Kanban",
-      display_state_form: false,
-      get_state_fields,
-      configuration_workflow,
-      run,
-      connectedObjects,
-      routes: { set_col_order, set_card_value },
-    },
-  ],
+  name: "Kanban",
+  display_state_form: false,
+  get_state_fields,
+  configuration_workflow,
+  run,
+  connectedObjects,
+  routes: { set_col_order, set_card_value },
 };
