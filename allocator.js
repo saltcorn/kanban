@@ -196,17 +196,28 @@ const run = async (
   const cols = [...col_vals];
   const widthPcnt = Math.round(100 / (cols.length + 1));
 
+  const row_fld = fields.find((f) => f.name === row_field);
+  const col_fld = fields.find((f) => f.name === col_field);
+  const row_labels = {};
+  for (const { label, value } of await row_fld.distinct_values()) {
+    row_labels[value] = label;
+  }
+  const col_labels = {};
+  for (const { label, value } of await col_fld.distinct_values()) {
+    col_labels[value] = label;
+  }
+
   const inner = table(
     thead(
       tr(
         th(row_field),
-        cols.map((c) => th(c))
+        cols.map((c) => th(col_labels[c]))
       )
     ),
     tbody(
       Object.entries(by_row).map(([rv, colvs]) =>
         tr(
-          td({ style: { width: `${widthPcnt}%` } }, rv),
+          td({ style: { width: `${widthPcnt}%` } }, row_labels[rv]),
           cols.map((c) =>
             td(
               { style: { width: `${widthPcnt}%` } },
