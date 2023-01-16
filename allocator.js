@@ -221,7 +221,12 @@ const run = async (
           td({ style: { width: `${widthPcnt}%` } }, row_labels[rv]),
           cols.map((c) =>
             td(
-              { style: { width: `${widthPcnt}%` }, class: "droptarget" },
+              {
+                style: { width: `${widthPcnt}%` },
+                class: "alloctarget",
+                "data-row-val": rv,
+                "data-col-val": c,
+              },
               (colvs[c] || []).map(
                 ({ row, html }) =>
                   div(
@@ -247,12 +252,29 @@ const run = async (
     inner,
     //pre(JSON.stringify({table, name:table.name}))+
     style(`
-    table.kanalloc td.droptarget {
+    table.kanalloc td.alloctarget {
       border: 1px solid black;
       border-collapse: collapse;
     }`),
 
-    script(domReady(""))
+    script(
+      domReady(`
+      var onDone=function(){
+        ${reload_on_drag ? "location.reload();" : ""}
+      }
+    var els=document.querySelectorAll('.alloctarget')
+  dragula(Array.from(els), {
+    moves: function(el, container, handle) {
+      return !el.className.includes('empty-placeholder')
+    }
+  }).on('drop', function (el,target, src,before) {
+    var dataObj={ id: $(el).attr('data-id') }
+    dataObj.${col_field}=$(target).attr('data-col-val');   
+    dataObj.${row_field}=$(target).attr('data-row-val');      
+    view_post('${viewname}', 'set_card_value', dataObj, onDone);
+  })
+    `)
+    )
   );
 };
 
@@ -276,7 +298,16 @@ const connectedObjects = async ({ show_view, expand_view }) => {
 const set_card_value = async (
   table_id,
   viewname,
-  { column_field, position_field, swimlane_field },
+  {
+    show_view,
+    expand_view,
+    reload_on_drag,
+    row_field,
+    col_field,
+    row_where,
+    col_field_format,
+    col_no_weekends,
+  },
   body,
   { req }
 ) => {
@@ -285,44 +316,13 @@ const set_card_value = async (
   if (role > table.min_role_write) {
     return { json: { error: "not authorized" } };
   }
-  let colval = body[column_field];
-  const fields = await table.getFields();
-  const column_field_field = fields.find((f) => f.name === column_field);
-  if (column_field_field && column_field_field.type === "Key") {
-    const reftable = await Table.findOne({
-      name: column_field_field.reftable_name,
-    });
-    const refrow = await reftable.getRow({
-      [column_field_field.attributes.summary_field]: body[column_field],
-    });
-    colval = refrow.id;
-  }
-  const updRow = { [column_field]: colval };
-  if (position_field) {
-    var newpos;
-    const exrows = await table.getRows(
-      { [column_field]: colval },
-      { orderBy: position_field }
-    );
-    const before_id = parseInt(body.before_id);
-    if (before_id) {
-      const before_ix = exrows.findIndex((row) => row.id === before_id);
-      if (before_ix === 0) newpos = exrows[0][position_field] - 1;
-      else
-        newpos =
-          (exrows[before_ix - 1][position_field] +
-            exrows[before_ix][position_field]) /
-          2;
-    } else {
-      if (exrows.length > 0)
-        newpos = exrows[exrows.length - 1][position_field] + 1;
-      else newpos = Math.random();
-    }
-    updRow[position_field] = newpos;
-  }
-  if (swimlane_field && !swimlane_field.includes(".")) {
-    updRow[swimlane_field] = body[swimlane_field] || null;
-  }
+  const cv = body[col_field];
+  const rv = body[row_field];
+  const updRow = {
+    [col_field]: cv === "null" ? null : cv,
+    [row_field]: rv === "null" ? null : rv,
+  };
+
   await table.updateRow(updRow, parseInt(body.id));
   return { json: { success: "ok" } };
 };
