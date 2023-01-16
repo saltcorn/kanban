@@ -208,6 +208,7 @@ const run = async (
   }
 
   const inner = table(
+    { class: "kanalloc" },
     thead(
       tr(
         th(row_field),
@@ -220,7 +221,7 @@ const run = async (
           td({ style: { width: `${widthPcnt}%` } }, row_labels[rv]),
           cols.map((c) =>
             td(
-              { style: { width: `${widthPcnt}%` } },
+              { style: { width: `${widthPcnt}%` }, class: "droptarget" },
               (colvs[c] || []).map(
                 ({ row, html }) =>
                   div(
@@ -245,7 +246,11 @@ const run = async (
     { class: [] },
     inner,
     //pre(JSON.stringify({table, name:table.name}))+
-    style(""),
+    style(`
+    table.kanalloc td.droptarget {
+      border: 1px solid black;
+      border-collapse: collapse;
+    }`),
 
     script(domReady(""))
   );
