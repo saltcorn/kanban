@@ -35,6 +35,7 @@ const configuration_workflow = () =>
     steps: [
       {
         name: "views",
+        disablePreview: true,
         form: async (context) => {
           const table = await Table.findOne({ id: context.table_id });
           const fields = await table.getFields();
