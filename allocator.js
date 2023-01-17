@@ -247,6 +247,7 @@ const run = async (
     const col_val = row[col_field];
     col_vals.add(col_val);
     row_vals.add(row_val);
+    if (!col_labels[col_val]) col_labels[col_val] = xformCol(col_val);
     if (!by_row[row_val]) by_row[row_val] = {};
     if (!by_row[row_val][col_val]) by_row[row_val][col_val] = [];
     by_row[row_val][col_val].push({ html, row });
