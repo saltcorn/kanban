@@ -184,7 +184,6 @@ const run = async (
 
   const allocated_sresps = await sview.runMany(state, extraArgs);
 
-  console.log(state);
   //if state is col or row fld, also get unallocated
   if (state[row_field])
     allocated_sresps.push(
