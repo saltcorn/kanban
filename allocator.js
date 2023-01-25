@@ -109,20 +109,10 @@ const configuration_workflow = () =>
               },
               {
                 name: "row_hdr_width",
-                label: "Label cells width",
+                label: "Label cell width px",
                 type: "Integer",
-                attributes: { asideNext: true },
               },
-              {
-                name: "row_hdr_width_units",
-                label: "Units",
-                type: "String",
-                fieldview: "radio_group",
-                attributes: {
-                  inline: true,
-                  options: ["px", "%", "vw", "em", "rem"],
-                },
-              },
+
               { input_type: "section_header", label: "Columns" },
               {
                 name: "col_field",
@@ -158,19 +148,8 @@ const configuration_workflow = () =>
               },
               {
                 name: "col_width",
-                label: "Column width",
+                label: "Column width px",
                 type: "Integer",
-                attributes: { asideNext: true },
-              },
-              {
-                name: "col_width_units",
-                label: "Units",
-                type: "String",
-                fieldview: "radio_group",
-                attributes: {
-                  inline: true,
-                  options: ["px", "%", "vw", "em", "rem"],
-                },
               },
             ],
           });
@@ -207,9 +186,7 @@ const run = async (
     unallocated_col_label,
     unallocated_row_label,
     col_width,
-    col_width_units,
     row_hdr_width,
-    row_hdr_width_units,
   },
   state,
   extraArgs
@@ -305,13 +282,32 @@ const run = async (
   }
   const cols = [...col_vals];
   const defWidth = `${Math.round(100 / (cols.length + 1))}%`;
+  const tableWidth = col_width
+    ? cols.length * col_width + row_hdr_width
+    : undefined;
 
   const inner = table(
     { class: "kanalloc" },
     thead(
       tr(
-        th(row_field),
-        cols.map((c) => th(col_labels[c]))
+        th(
+          {
+            style: {
+              width: row_hdr_width ? `${row_hdr_width}px` : defWidth,
+            },
+          },
+          row_field
+        ),
+        cols.map((c) =>
+          th(
+            {
+              style: {
+                width: col_width ? `${col_width}px` : defWidth,
+              },
+            },
+            col_labels[c]
+          )
+        )
       )
     ),
     tbody(
@@ -320,9 +316,7 @@ const run = async (
           td(
             {
               style: {
-                width: row_hdr_width
-                  ? `${row_hdr_width}${row_hdr_width_units}`
-                  : defWidth,
+                width: row_hdr_width ? `${row_hdr_width}px` : defWidth,
               },
             },
             row_labels[rv]
@@ -331,9 +325,7 @@ const run = async (
             td(
               {
                 style: {
-                  width: col_width
-                    ? `${col_width}${col_width_units}`
-                    : defWidth,
+                  width: col_width ? `${col_width}px` : defWidth,
                 },
                 class: "alloctarget",
                 "data-row-val": rv,
@@ -364,11 +356,15 @@ const run = async (
     inner,
     //pre(JSON.stringify({table, name:table.name}))+
     style(`
-    table.kanalloc { table-layout: fixed;}
+    table.kanalloc { 
+      table-layout: fixed;
+      ${tableWidth ? `width: ${tableWidth}px;` : ""} 
+    }
     table.kanalloc td, table.kanalloc th {
       border: 1px solid black;
       border-collapse: collapse;
       overflow: hidden;
+      text-overflow: ellipsis;
     }`),
 
     script(
