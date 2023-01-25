@@ -102,6 +102,11 @@ const configuration_workflow = () =>
                 sublabel: "include the rows that match this formula",
                 type: "String",
               },
+              {
+                type: "String",
+                name: "unallocated_row_label",
+                label: "Unallocated label",
+              },
               { input_type: "section_header", label: "Columns" },
               {
                 name: "col_field",
@@ -129,6 +134,11 @@ const configuration_workflow = () =>
                 showIf: {
                   col_field: date_fields.map((f) => f.name),
                 },
+              },
+              {
+                type: "String",
+                name: "unallocated_col_label",
+                label: "Unallocated label",
               },
             ],
           });
@@ -162,6 +172,8 @@ const run = async (
     row_where,
     col_field_format,
     col_no_weekends,
+    unallocated_col_label,
+    unallocated_row_label,
   },
   state,
   extraArgs
@@ -237,16 +249,22 @@ const run = async (
   const by_row = {};
   const row_labels = {};
   for (const { label, value } of await row_fld.distinct_values()) {
-    row_vals.add(value);
-    row_labels[value] = label;
-    if (!by_row[value]) by_row[value] = {};
+    console.log("row value", JSON.stringify(value), label);
+    row_vals.add(value || "");
+    row_labels[value || ""] = !value ? unallocated_row_label || label : label;
+    if (!by_row[value || ""]) by_row[value || ""] = {};
   }
+  console.log("from dvs", { row_vals });
+
   for (const { html, row } of allocated_sresps) {
-    const row_val = row[row_field];
+    const row_val = row[row_field] || "";
     const col_val = row[col_field];
     col_vals.add(col_val);
     row_vals.add(row_val);
-    if (!col_labels[col_val]) col_labels[col_val] = xformCol(col_val);
+    if (!col_labels[col_val])
+      col_labels[col_val] = !col_val
+        ? unallocated_col_label || xformCol(col_val)
+        : xformCol(col_val);
     if (!by_row[row_val]) by_row[row_val] = {};
     if (!by_row[row_val][col_val]) by_row[row_val][col_val] = [];
     by_row[row_val][col_val].push({ html, row });
@@ -254,6 +272,7 @@ const run = async (
   const cols = [...col_vals];
   const widthPcnt = Math.round(100 / (cols.length + 1));
 
+  console.log({ row_vals });
   const inner = table(
     { class: "kanalloc" },
     thead(
@@ -369,7 +388,7 @@ const set_card_value = async (
   const col_fld = fields.find((f) => f.name === col_field);
   const updRow = {
     [col_field]: cv === "null" ? null : cv,
-    [row_field]: rv === "null" ? null : rv,
+    [row_field]: rv === "null" || rv === "" ? null : rv,
   };
   if (col_fld.type?.name === "Date" && updRow[col_field]) {
     updRow[col_field] += "T00:00:00.000Z";
