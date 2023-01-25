@@ -107,6 +107,22 @@ const configuration_workflow = () =>
                 name: "unallocated_row_label",
                 label: "Unallocated label",
               },
+              {
+                name: "row_hdr_width",
+                label: "Label cells width",
+                type: "Integer",
+                attributes: { asideNext: true },
+              },
+              {
+                name: "row_hdr_width_units",
+                label: "Units",
+                type: "String",
+                fieldview: "radio_group",
+                attributes: {
+                  inline: true,
+                  options: ["px", "%", "vw", "em", "rem"],
+                },
+              },
               { input_type: "section_header", label: "Columns" },
               {
                 name: "col_field",
@@ -139,6 +155,22 @@ const configuration_workflow = () =>
                 type: "String",
                 name: "unallocated_col_label",
                 label: "Unallocated label",
+              },
+              {
+                name: "col_width",
+                label: "Column width",
+                type: "Integer",
+                attributes: { asideNext: true },
+              },
+              {
+                name: "col_width_units",
+                label: "Units",
+                type: "String",
+                fieldview: "radio_group",
+                attributes: {
+                  inline: true,
+                  options: ["px", "%", "vw", "em", "rem"],
+                },
               },
             ],
           });
@@ -174,6 +206,10 @@ const run = async (
     col_no_weekends,
     unallocated_col_label,
     unallocated_row_label,
+    col_width,
+    col_width_units,
+    row_hdr_width,
+    row_hdr_width_units,
   },
   state,
   extraArgs
@@ -249,12 +285,10 @@ const run = async (
   const by_row = {};
   const row_labels = {};
   for (const { label, value } of await row_fld.distinct_values()) {
-    console.log("row value", JSON.stringify(value), label);
     row_vals.add(value || "");
     row_labels[value || ""] = !value ? unallocated_row_label || label : label;
     if (!by_row[value || ""]) by_row[value || ""] = {};
   }
-  console.log("from dvs", { row_vals });
 
   for (const { html, row } of allocated_sresps) {
     const row_val = row[row_field] || "";
@@ -270,9 +304,8 @@ const run = async (
     by_row[row_val][col_val].push({ html, row });
   }
   const cols = [...col_vals];
-  const widthPcnt = Math.round(100 / (cols.length + 1));
+  const defWidth = `${Math.round(100 / (cols.length + 1))}%`;
 
-  console.log({ row_vals });
   const inner = table(
     { class: "kanalloc" },
     thead(
@@ -284,11 +317,24 @@ const run = async (
     tbody(
       Object.entries(by_row).map(([rv, colvs]) =>
         tr(
-          td({ style: { width: `${widthPcnt}%` } }, row_labels[rv]),
+          td(
+            {
+              style: {
+                width: row_hdr_width
+                  ? `${row_hdr_width}${row_hdr_width_units}`
+                  : defWidth,
+              },
+            },
+            row_labels[rv]
+          ),
           cols.map((c) =>
             td(
               {
-                style: { width: `${widthPcnt}%` },
+                style: {
+                  width: col_width
+                    ? `${col_width}${col_width_units}`
+                    : defWidth,
+                },
                 class: "alloctarget",
                 "data-row-val": rv,
                 "data-col-val": c,
@@ -318,9 +364,11 @@ const run = async (
     inner,
     //pre(JSON.stringify({table, name:table.name}))+
     style(`
+    table.kanalloc { table-layout: fixed;}
     table.kanalloc td, table.kanalloc th {
       border: 1px solid black;
       border-collapse: collapse;
+      overflow: hidden;
     }`),
 
     script(
