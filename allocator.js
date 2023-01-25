@@ -299,7 +299,7 @@ const run = async (
     inner,
     //pre(JSON.stringify({table, name:table.name}))+
     style(`
-    table.kanalloc td.alloctarget {
+    table.kanalloc td, table.kanalloc th {
       border: 1px solid black;
       border-collapse: collapse;
     }`),
