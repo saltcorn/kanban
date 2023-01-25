@@ -313,7 +313,7 @@ const run = async (
     tbody(
       Object.entries(by_row).map(([rv, colvs]) =>
         tr(
-          td(
+          th(
             {
               style: {
                 width: row_hdr_width ? `${row_hdr_width}px` : defWidth,
@@ -365,7 +365,26 @@ const run = async (
       border-collapse: collapse;
       overflow: hidden;
       text-overflow: ellipsis;
-    }`),
+    }
+    table thead th {
+      padding: 3px;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: white;
+    }
+    table.kanalloc thead th:first-child {
+      position: sticky;
+      left: 0;
+      z-index: 2;
+    }
+    table.kanalloc tbody th {
+      position: sticky;
+      left: 0;
+      background: white;
+      z-index: 1;
+    }
+    `),
 
     script(
       domReady(`
