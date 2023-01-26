@@ -282,14 +282,23 @@ const run = async (
   }
   const cols = [...col_vals];
   const defWidth = `${Math.round(100 / (cols.length + 1))}%`;
+  const unalloc_area_width = 150;
   const tableWidth = col_width
-    ? cols.length * col_width + row_hdr_width
+    ? cols.length * col_width + row_hdr_width + unalloc_area_width
     : undefined;
 
   const inner = table(
     { class: "kanalloc" },
     thead(
       tr(
+        th(
+          {
+            style: {
+              width: `${unalloc_area_width}px`,
+            },
+          },
+          "Unallocated"
+        ),
         th(
           {
             style: {
@@ -311,10 +320,23 @@ const run = async (
       )
     ),
     tbody(
-      Object.entries(by_row).map(([rv, colvs]) =>
+      Object.entries(by_row).map(([rv, colvs], i) =>
         tr(
+          i === 0
+            ? th(
+                {
+                  class: "unalloc",
+                  style: {
+                    width: `${unalloc_area_width}px`,
+                  },
+                  rowSpan: row_vals.size,
+                },
+                "area here"
+              )
+            : "",
           th(
             {
+              class: "rowlbl",
               style: {
                 width: row_hdr_width ? `${row_hdr_width}px` : defWidth,
               },
@@ -350,7 +372,7 @@ const run = async (
       )
     )
   );
-
+  //
   return div(
     { class: [] },
     inner,
@@ -365,6 +387,7 @@ const run = async (
       border-collapse: collapse;
       overflow: hidden;
       text-overflow: ellipsis;
+      vertical-align: top;
     }
     table thead th {
       padding: 3px;
@@ -378,9 +401,20 @@ const run = async (
       left: 0;
       z-index: 2;
     }
-    table.kanalloc tbody th {
+    table.kanalloc thead th:nth-child(2) {
+      position: sticky;
+      left: ${unalloc_area_width}px;
+      z-index: 2;
+    }
+    table.kanalloc tbody th.unalloc {
       position: sticky;
       left: 0;
+      background: white;
+      z-index: 1;
+    }
+    table.kanalloc tbody th.rowlbl {
+      position: sticky;
+      left: ${unalloc_area_width}px;
       background: white;
       z-index: 1;
     }
