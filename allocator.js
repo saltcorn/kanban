@@ -336,11 +336,13 @@ const run = async (
           i === 0
             ? th(
                 {
-                  class: "unalloc",
+                  class: "unalloc alloctarget",
                   style: {
                     width: `${unalloc_area_width}px`,
                   },
                   rowSpan: row_vals.size,
+                  "data-row-val": "",
+                  "data-col-val": "null",
                 },
                 by_row[""]["null"].map(show_item)
               )
