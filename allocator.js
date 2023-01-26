@@ -286,7 +286,18 @@ const run = async (
   const tableWidth = col_width
     ? cols.length * col_width + row_hdr_width + unalloc_area_width
     : undefined;
-
+  console.log(Object.keys(by_row[""]));
+  const show_item = ({ row, html }) =>
+    div(
+      {
+        class: "kancard card",
+        "data-id": text(row.id),
+        ...(expand_view && {
+          onClick: `ajax_modal('/view/${expand_view}?id=${row.id}')`,
+        }),
+      },
+      html
+    ) + "\n";
   const inner = table(
     { class: "kanalloc" },
     thead(
@@ -331,7 +342,7 @@ const run = async (
                   },
                   rowSpan: row_vals.size,
                 },
-                "area here"
+                by_row[""]["null"].map(show_item)
               )
             : "",
           th(
@@ -344,29 +355,24 @@ const run = async (
             row_labels[rv]
           ),
           cols.map((c) =>
-            td(
-              {
-                style: {
-                  width: col_width ? `${col_width}px` : defWidth,
-                },
-                class: "alloctarget",
-                "data-row-val": rv,
-                "data-col-val": c,
-              },
-              (colvs[c] || []).map(
-                ({ row, html }) =>
-                  div(
-                    {
-                      class: "kancard card",
-                      "data-id": text(row.id),
-                      ...(expand_view && {
-                        onClick: `ajax_modal('/view/${expand_view}?id=${row.id}')`,
-                      }),
+            c === null && rv === ""
+              ? td({
+                  style: {
+                    width: col_width ? `${col_width}px` : defWidth,
+                    backgroundColor: "grey",
+                  },
+                })
+              : td(
+                  {
+                    style: {
+                      width: col_width ? `${col_width}px` : defWidth,
                     },
-                    html
-                  ) + "\n"
-              )
-            )
+                    class: "alloctarget",
+                    "data-row-val": rv,
+                    "data-col-val": c,
+                  },
+                  (colvs[c] || []).map(show_item)
+                )
           )
         )
       )
