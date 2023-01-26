@@ -286,7 +286,8 @@ const run = async (
   const tableWidth = col_width
     ? cols.length * col_width + row_hdr_width + unalloc_area_width
     : undefined;
-  console.log(Object.keys(by_row[""]));
+  //console.log(Object.keys(by_row));
+  //console.log(Object.keys(by_row[""]));
   const show_item = ({ row, html }) =>
     div(
       {
@@ -344,7 +345,7 @@ const run = async (
                   "data-row-val": "",
                   "data-col-val": "null",
                 },
-                by_row[""]["null"].map(show_item)
+                (by_row[""]["null"] || []).map(show_item)
               )
             : "",
           th(
