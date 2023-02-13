@@ -172,9 +172,17 @@ const configuration_workflow = () =>
                 default: "px",
               },
               {
+                name: "disable_card_movement",
+                label: "Disable card movement",
+                sublabel:
+                  "Tick this to lock the ordering of the columns, but not the cards",
+                type: "Bool",
+              },
+              {
                 name: "reload_on_drag",
                 label: "Reload page on drag",
                 type: "Bool",
+                showIf: { disable_card_movement: false },
               },
               {
                 name: "disable_column_reordering",
@@ -183,6 +191,7 @@ const configuration_workflow = () =>
                   "Tick this to lock the ordering of the columns, but not the cards",
                 type: "Bool",
               },
+
               {
                 name: "column_padding",
                 label: "Column padding",
@@ -336,7 +345,8 @@ const js = (
   viewname,
   reload_on_drag,
   disable_column_reordering,
-  swimlane_field
+  swimlane_field,
+  disable_card_movement
 ) => `
   const swimlane_field=${JSON.stringify(swimlane_field)};
   var getColumnValues=function() {
@@ -366,6 +376,10 @@ const js = (
   })
   `
   }
+  ${
+    disable_card_movement
+      ? ""
+      : `
   var els=document.querySelectorAll('.kancontainer')
   dragula(Array.from(els), {
     moves: function(el, container, handle) {
@@ -379,7 +393,8 @@ const js = (
       dataObj[swimlane_field]=$(target).attr('data-swimlane-value')
     }
     view_post('${viewname}', 'set_card_value', dataObj, onDone);
-  })
+  })`
+  }
 `;
 
 const assign_random_positions = async (rows, position_field, table_id) => {
@@ -421,6 +436,7 @@ const run = async (
     create_at_top,
     create_view_display,
     create_label,
+    disable_card_movement,
   },
   state,
   extraArgs
@@ -738,7 +754,8 @@ const run = async (
             viewname,
             reload_on_drag,
             disable_column_reordering,
-            swimlane_field
+            swimlane_field,
+            disable_card_movement
           )
         )
       )
