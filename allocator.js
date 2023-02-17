@@ -151,6 +151,22 @@ const configuration_workflow = () =>
                 label: "Column width px",
                 type: "Integer",
               },
+              { input_type: "section_header", label: "Layout" },
+              {
+                name: "grid_color",
+                label: "Grid color",
+                type: "Color",
+              },
+              {
+                name: "label_color",
+                label: "Label color",
+                type: "Color",
+              },
+              {
+                name: "label_background_color",
+                label: "Label background color",
+                type: "Color",
+              },
             ],
           });
         },
@@ -187,6 +203,9 @@ const run = async (
     unallocated_row_label,
     col_width,
     row_hdr_width,
+    grid_color,
+    label_background_color,
+    label_color,
   },
   state,
   extraArgs
@@ -392,7 +411,7 @@ const run = async (
       ${tableWidth ? `width: ${tableWidth}px;` : ""} 
     }
     table.kanalloc td, table.kanalloc th {
-      border: 1px solid black;
+      border: 1px solid ${grid_color || `black`};
       border-collapse: collapse;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -403,7 +422,8 @@ const run = async (
       position: sticky;
       top: 0;
       z-index: 1;
-      background: white;
+      color:  ${label_color || `black`};
+      background: ${label_background_color || `white`};
     }
     table.kanalloc thead th:first-child {
       position: sticky;
@@ -424,7 +444,8 @@ const run = async (
     table.kanalloc tbody th.rowlbl {
       position: sticky;
       left: ${unalloc_area_width}px;
-      background: white;
+      background:  ${label_background_color || `white`};
+      color:  ${label_color || `black`};
       z-index: 1;
     }
     `),
