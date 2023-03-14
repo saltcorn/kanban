@@ -260,7 +260,7 @@ const configuration_workflow = () =>
                 name: "swimlane_where",
                 label: "Where",
                 class: "validate-expression",
-                sublabel: "Only include swimalane rows matching this formula",
+                sublabel: "Only include swimlane rows matching this formula",
                 type: "String",
                 showIf: { swimlane_field: swimlaneOptions },
               },
