@@ -858,7 +858,7 @@ const set_card_value = async (
   if (swimlane_field && !swimlane_field.includes(".")) {
     updRow[swimlane_field] = body[swimlane_field] || null;
   }
-  await table.updateRow(updRow, parseInt(body.id));
+  await table.updateRow(updRow, parseInt(body.id), req.user || { role_id: 10 });
   return { json: { success: "ok" } };
 };
 
