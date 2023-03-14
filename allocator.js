@@ -506,7 +506,10 @@ const set_card_value = async (
 ) => {
   const table = await Table.findOne({ id: table_id });
   const role = req.isAuthenticated() ? req.user.role_id : 10;
-  if (role > table.min_role_write) {
+  if (
+    role > table.min_role_write &&
+    !(table.ownership_field_id || table.ownership_formula)
+  ) {
     return { json: { error: "not authorized" } };
   }
   const cv = body[col_field]; //
@@ -521,7 +524,7 @@ const set_card_value = async (
     updRow[col_field] += "T00:00:00.000Z";
   }
 
-  await table.updateRow(updRow, parseInt(body.id));
+  await table.updateRow(updRow, parseInt(body.id), req.user || { role_id: 10 });
   return { json: { success: "ok" } };
 };
 
