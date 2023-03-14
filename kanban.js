@@ -454,7 +454,10 @@ const run = async (
       "Kanban board incorrectly configured. Cannot find view: ",
       show_view
     );
-
+  const forUser = {
+    forUser: extraArgs.req.user || { role_id: 10 },
+    forPublic: !extraArgs.req.user,
+  };
   const sresps = await sview.runMany(state, extraArgs);
   if (position_field)
     await assign_random_positions(sresps, position_field, table_id);
@@ -468,9 +471,12 @@ const run = async (
       if (jtNm === table.name && jFieldNm === column_field) {
         //bingo.
 
-        const validColRows = await Table.findOne({ name: tblName }).getRows({
-          [lblField]: v,
-        });
+        const validColRows = await Table.findOne({ name: tblName }).getRows(
+          {
+            [lblField]: v,
+          },
+          forUser
+        );
         restrictColsTo = new Set(validColRows.map((r) => r.id));
       }
     }
@@ -493,7 +499,7 @@ const run = async (
     const reftable = await Table.findOne({
       name: column_field_field.reftable_name,
     });
-    const refRows = await reftable.getRows();
+    const refRows = await reftable.getRows({}, forUser);
     refRows.forEach((r) => {
       if (cols[r.id]) {
         cols[r[column_field_field.attributes.summary_field]] = cols[r.id];
@@ -651,6 +657,7 @@ const run = async (
                 target: targetNm,
               },
             },
+            ...forUser,
           });
           columnFilterData = {};
           colrows.forEach((colrow) => {
@@ -666,7 +673,11 @@ const run = async (
       //do the query and create joinData
       const qstate = await stateFieldsToWhere({ fields, state });
 
-      const joinRows = await table.getJoinedRows({ where: qstate, joinFields });
+      const joinRows = await table.getJoinedRows({
+        where: qstate,
+        joinFields,
+        ...forUser,
+      });
       joinRows.forEach((r) => {
         joinData[r.id] = r;
       });
@@ -802,6 +813,10 @@ const set_card_value = async (
   if (role > table.min_role_write) {
     return { json: { error: "not authorized" } };
   }
+  const forUser = {
+    forUser: req.user || { role_id: 10 },
+    forPublic: !req.user,
+  };
   let colval = body[column_field];
   const fields = await table.getFields();
   const column_field_field = fields.find((f) => f.name === column_field);
@@ -809,9 +824,12 @@ const set_card_value = async (
     const reftable = await Table.findOne({
       name: column_field_field.reftable_name,
     });
-    const refrow = await reftable.getRow({
-      [column_field_field.attributes.summary_field]: body[column_field],
-    });
+    const refrow = await reftable.getRow(
+      {
+        [column_field_field.attributes.summary_field]: body[column_field],
+      },
+      forUser
+    );
     colval = refrow.id;
   }
   const updRow = { [column_field]: colval };
@@ -819,7 +837,7 @@ const set_card_value = async (
     var newpos;
     const exrows = await table.getRows(
       { [column_field]: colval },
-      { orderBy: position_field }
+      { orderBy: position_field, ...forUser }
     );
     const before_id = parseInt(body.before_id);
     if (before_id) {
