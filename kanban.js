@@ -165,42 +165,6 @@ const configuration_workflow = () =>
               },
               {
                 input_type: "section_header",
-                label: "Creating a new card",
-              },
-              {
-                name: "view_to_create",
-                label: "Use view to create",
-                sublabel: "Leave blank to have no link to create a new item",
-                type: "String",
-                attributes: {
-                  options: create_view_opts.join(),
-                },
-              },
-              {
-                name: "create_at_top",
-                label: "Create at top",
-                type: "Bool",
-                showIf: { view_to_create: create_view_opts },
-              },
-              {
-                name: "create_label",
-                label: "Label to create",
-                default: "Add new card",
-                type: "String",
-                showIf: { view_to_create: create_view_opts },
-              },
-              {
-                name: "create_view_display",
-                label: "Display create view as",
-                type: "String",
-                required: true,
-                attributes: {
-                  options: "Link,Popup", //Embedded
-                },
-                showIf: { view_to_create: create_view_opts },
-              },
-              {
-                input_type: "section_header",
                 label: "Card movement",
               },
               {
@@ -236,6 +200,42 @@ const configuration_workflow = () =>
                 sublabel:
                   "Tick this to lock the ordering of the columns, but not the cards",
                 type: "Bool",
+              },
+              {
+                input_type: "section_header",
+                label: "Creating a new card",
+              },
+              {
+                name: "view_to_create",
+                label: "Use view to create",
+                sublabel: "Leave blank to have no link to create a new item",
+                type: "String",
+                attributes: {
+                  options: create_view_opts.join(),
+                },
+              },
+              {
+                name: "create_at_top",
+                label: "Create at top",
+                type: "Bool",
+                showIf: { view_to_create: create_view_opts },
+              },
+              {
+                name: "create_label",
+                label: "Label to create",
+                default: "Add new card",
+                type: "String",
+                showIf: { view_to_create: create_view_opts },
+              },
+              {
+                name: "create_view_display",
+                label: "Display create view as",
+                type: "String",
+                required: true,
+                attributes: {
+                  options: "Link,Popup", //Embedded
+                },
+                showIf: { view_to_create: create_view_opts },
               },
               {
                 input_type: "section_header",
