@@ -84,6 +84,10 @@ const configuration_workflow = () =>
           return new Form({
             fields: [
               {
+                input_type: "section_header",
+                label: "Views",
+              },
+              {
                 name: "show_view",
                 label: "Card View",
                 type: "String",
@@ -102,6 +106,11 @@ const configuration_workflow = () =>
                 },
               },
               {
+                input_type: "section_header",
+                label: "Columns",
+              },
+
+              {
                 name: "column_field",
                 label: "Columns by",
                 type: "String",
@@ -111,18 +120,50 @@ const configuration_workflow = () =>
                 },
               },
               {
-                name: "position_field",
-                label: "Positions field",
+                name: "col_width",
+                label: "Column width",
+                type: "Integer",
+                sublabel: "Leave blank to divide the screen width evenly",
+              },
+              {
+                name: "col_width_units",
+                label: "Column width units",
                 type: "String",
-                sublabel:
-                  "The table need a fields of type 'Float' to track positions within each column. If you do not select or do not have a position field, the position within each column cannot be stored.",
-                required: false,
+                required: true,
+                fieldview: "radio_group",
                 attributes: {
-                  options: fields
-                    .filter((f) => f.type.name === "Float")
-                    .map((f) => f.name)
-                    .join(),
+                  inline: true,
+                  options: ["px", "%", "vw", "em", "rem"],
                 },
+                default: "px",
+              },
+
+              {
+                name: "column_padding",
+                label: "Column padding",
+                type: "Integer",
+                sublabel: "0-5",
+                attributes: {
+                  max: 5,
+                  min: 0,
+                },
+                default: 1,
+              },
+              {
+                name: "col_bg_color",
+                label: "Column background color",
+                type: "Color",
+                default: "#f0f0f0",
+              },
+              {
+                name: "col_text_color",
+                label: "Column text color",
+                type: "Color",
+                default: "#000000",
+              },
+              {
+                input_type: "section_header",
+                label: "Creating a new card",
               },
               {
                 name: "view_to_create",
@@ -154,22 +195,22 @@ const configuration_workflow = () =>
                 },
               },
               {
-                name: "col_width",
-                label: "Column width",
-                type: "Integer",
-                sublabel: "Leave blank to divide the screen width evenly",
+                input_type: "section_header",
+                label: "Card movement",
               },
               {
-                name: "col_width_units",
-                label: "Column width units",
+                name: "position_field",
+                label: "Positions field",
                 type: "String",
-                required: true,
-                fieldview: "radio_group",
+                sublabel:
+                  "The table need a fields of type 'Float' to track positions within each column. If you do not select or do not have a position field, the position within each column cannot be stored.",
+                required: false,
                 attributes: {
-                  inline: true,
-                  options: ["px", "%", "vw", "em", "rem"],
+                  options: fields
+                    .filter((f) => f.type.name === "Float")
+                    .map((f) => f.name)
+                    .join(),
                 },
-                default: "px",
               },
               {
                 name: "disable_card_movement",
@@ -191,29 +232,9 @@ const configuration_workflow = () =>
                   "Tick this to lock the ordering of the columns, but not the cards",
                 type: "Bool",
               },
-
               {
-                name: "column_padding",
-                label: "Column padding",
-                type: "Integer",
-                sublabel: "0-5",
-                attributes: {
-                  max: 5,
-                  min: 0,
-                },
-                default: 1,
-              },
-              {
-                name: "col_bg_color",
-                label: "Column background color",
-                type: "Color",
-                default: "#f0f0f0",
-              },
-              {
-                name: "col_text_color",
-                label: "Column text color",
-                type: "Color",
-                default: "#000000",
+                input_type: "section_header",
+                label: "Swimlanes",
               },
               {
                 name: "swimlane_field",
