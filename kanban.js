@@ -2,6 +2,7 @@ const Field = require("@saltcorn/data/models/field");
 const Table = require("@saltcorn/data/models/table");
 const Form = require("@saltcorn/data/models/form");
 const View = require("@saltcorn/data/models/view");
+const { jsexprToWhere } = require("@saltcorn/data/models/expression");
 const Workflow = require("@saltcorn/data/models/workflow");
 
 const {
@@ -255,6 +256,14 @@ const configuration_workflow = () =>
                 default: 300,
                 showIf: { swimlane_field: swimlaneOptions },
               },
+              {
+                name: "swimlane_where",
+                label: "Where",
+                class: "validate-expression",
+                sublabel: "Only include swimalane rows matching this formula",
+                type: "String",
+                showIf: { swimlane_field: swimlaneOptions },
+              },
             ],
           });
         },
@@ -457,6 +466,7 @@ const run = async (
     col_width_units,
     disable_column_reordering,
     swimlane_field,
+    swimlane_where,
     swimlane_height,
     create_at_top,
     create_view_display,
@@ -644,13 +654,17 @@ const run = async (
         const refTable = Table.findOne({ name: refField.reftable_name });
         const refFields = await refTable.getFields();
         const target = refFields.find((f) => f.name === targetNm);
+        const swimlane_where_wh = swimlane_where
+          ? jsexprToWhere(swimlane_where, {}, refFields)
+          : {};
         if (state[refNm]) {
           dvs = await target.distinct_values(extraArgs.req, {
             [refTable.pk_name]: state[refNm],
+            ...swimlane_where_wh,
           });
           dvs = dvs.filter((dv) => dv.value);
         } else {
-          dvs = await target.distinct_values(extraArgs.req);
+          dvs = await target.distinct_values(extraArgs.req, swimlane_where_wh);
         }
         joinFields[`_swimlane`] = {
           ref: refNm,
@@ -665,8 +679,10 @@ const run = async (
         const throughTable = Table.findOne({ name: through.reftable_name });
         const throughFields = await throughTable.getFields();
         const target = throughFields.find((f) => f.name === targetNm);
-
-        dvs = await target.distinct_values();
+        const swimlane_where_wh = swimlane_where
+          ? jsexprToWhere(swimlane_where, {}, throughFields)
+          : {};
+        dvs = await target.distinct_values(extraArgs.req, swimlane_where_wh);
         joinFields[`_swimlane`] = {
           ref: refNm,
           through: throughNm,
