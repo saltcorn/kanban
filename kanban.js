@@ -124,10 +124,11 @@ const configuration_workflow = () =>
                 label: "Column width",
                 type: "Integer",
                 sublabel: "Leave blank to divide the screen width evenly",
+                attributes: { asideNext: true },
               },
               {
                 name: "col_width_units",
-                label: "Column width units",
+                label: "Units",
                 type: "String",
                 required: true,
                 fieldview: "radio_group",
@@ -178,12 +179,14 @@ const configuration_workflow = () =>
                 name: "create_at_top",
                 label: "Create at top",
                 type: "Bool",
+                showIf: { view_to_create: create_view_opts },
               },
               {
                 name: "create_label",
                 label: "Label to create",
                 default: "Add new card",
                 type: "String",
+                showIf: { view_to_create: create_view_opts },
               },
               {
                 name: "create_view_display",
@@ -193,6 +196,7 @@ const configuration_workflow = () =>
                 attributes: {
                   options: "Link,Popup", //Embedded
                 },
+                showIf: { view_to_create: create_view_opts },
               },
               {
                 input_type: "section_header",
