@@ -327,7 +327,7 @@ const css = ({
   }
   .kanswimcontents {
     overflow-y: scroll;
-    overflow-x: clip;
+    overflow-x: ${col_width ? "auto" : "clip"};
   }
   .kanswimlane h5.swimlanehdr {
     margin-top: 5px;
