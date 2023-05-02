@@ -30,6 +30,9 @@ const {
 } = require("@saltcorn/data//plugin-helper");
 const moment = require("moment");
 
+const { features } = require("@saltcorn/data/db/state");
+const public_user_role = features?.public_user_role || 10;
+
 const configuration_workflow = () =>
   new Workflow({
     steps: [
@@ -217,7 +220,7 @@ const run = async (
   readState(state, fields);
   const role = extraArgs.req.isAuthenticated()
     ? extraArgs.req.user.role_id
-    : 10;
+    : public_user_role;
   const sview = await View.findOne({ name: show_view });
   if (!sview)
     return div(
@@ -505,7 +508,7 @@ const set_card_value = async (
   { req }
 ) => {
   const table = await Table.findOne({ id: table_id });
-  const role = req.isAuthenticated() ? req.user.role_id : 10;
+  const role = req.isAuthenticated() ? req.user.role_id : public_user_role;
   if (
     role > table.min_role_write &&
     !(table.ownership_field_id || table.ownership_formula)
@@ -524,7 +527,11 @@ const set_card_value = async (
     updRow[col_field] += "T00:00:00.000Z";
   }
 
-  await table.updateRow(updRow, parseInt(body.id), req.user || { role_id: 10 });
+  await table.updateRow(
+    updRow,
+    parseInt(body.id),
+    req.user || { role_id: public_user_role }
+  );
   return { json: { success: "ok" } };
 };
 

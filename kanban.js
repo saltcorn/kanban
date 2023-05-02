@@ -24,6 +24,9 @@ const {
   readState,
 } = require("@saltcorn/data//plugin-helper");
 
+const { features } = require("@saltcorn/data/db/state");
+const public_user_role = features?.public_user_role || 10;
+
 const configuration_workflow = () =>
   new Workflow({
     steps: [
@@ -481,7 +484,7 @@ const run = async (
   readState(state, fields);
   const role = extraArgs.req.isAuthenticated()
     ? extraArgs.req.user.role_id
-    : 10;
+    : public_user_role;
   const sview = await View.findOne({ name: show_view });
   if (!sview)
     return div(
@@ -490,7 +493,7 @@ const run = async (
       show_view
     );
   const forUser = {
-    forUser: extraArgs.req.user || { role_id: 10 },
+    forUser: extraArgs.req.user || { role_id: public_user_role },
     forPublic: !extraArgs.req.user,
   };
   const sresps = await sview.runMany(state, extraArgs);
@@ -850,7 +853,7 @@ const set_card_value = async (
   { req }
 ) => {
   const table = await Table.findOne({ id: table_id });
-  const role = req.isAuthenticated() ? req.user.role_id : 10;
+  const role = req.isAuthenticated() ? req.user.role_id : public_user_role;
   if (
     role > table.min_role_write &&
     !(table.ownership_field_id || table.ownership_formula)
@@ -858,7 +861,7 @@ const set_card_value = async (
     return { json: { error: "not authorized" } };
   }
   const forUser = {
-    forUser: req.user || { role_id: 10 },
+    forUser: req.user || { role_id: public_user_role },
     forPublic: !req.user,
   };
   let colval = body[column_field];
@@ -902,7 +905,11 @@ const set_card_value = async (
   if (swimlane_field && !swimlane_field.includes(".")) {
     updRow[swimlane_field] = body[swimlane_field] || null;
   }
-  await table.updateRow(updRow, parseInt(body.id), req.user || { role_id: 10 });
+  await table.updateRow(
+    updRow,
+    parseInt(body.id),
+    req.user || { role_id: public_user_role }
+  );
   return { json: { success: "ok" } };
 };
 
@@ -910,7 +917,7 @@ const set_card_value = async (
 const set_col_order = async (table_id, viewname, config, body, { req }) => {
   const table = await Table.findOne({ id: table_id });
 
-  const role = req.isAuthenticated() ? req.user.role_id : 10;
+  const role = req.isAuthenticated() ? req.user.role_id : public_user_role;
   if (role > table.min_role_write) {
     return { json: { error: "not authorized" } };
   }
