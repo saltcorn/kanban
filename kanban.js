@@ -394,8 +394,12 @@ const js = (
     })
     return vs
   }
-  var onDone=function(){
+  var onDone=(el,target, src,before)=> (res)=> {
     ${reload_on_drag ? "location.reload();" : ""}
+    if(res.error){
+      $(el).detach();
+      $(src).append(el)
+    }
   }
   var reportColumnValues=function(){
     view_post('${viewname}', 'set_col_order', getColumnValues());
@@ -430,7 +434,7 @@ const js = (
     if(swimlane_field) {
       dataObj[swimlane_field]=$(target).attr('data-swimlane-value')
     }
-    view_post('${viewname}', 'set_card_value', dataObj, onDone);
+    view_post('${viewname}', 'set_card_value', dataObj, onDone(el,target, src,before));
   })`
   }
 `;
@@ -906,12 +910,15 @@ const set_card_value = async (
   if (swimlane_field && !swimlane_field.includes(".")) {
     updRow[swimlane_field] = body[swimlane_field] || null;
   }
+  const upres = {};
   await table.updateRow(
     updRow,
     parseInt(body.id),
-    req.user || { role_id: public_user_role }
+    req.user || { role_id: public_user_role },
+    false,
+    upres
   );
-  return { json: { success: "ok" } };
+  return { json: { success: "ok", ...upres } };
 };
 
 //whole column has been moved
