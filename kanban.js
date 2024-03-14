@@ -564,7 +564,7 @@ const run = async (
   const get_col_divs =
     (swimVal) =>
     ([hdrName, vs]) => {
-      let maxpos = -10000;
+      let maxpos = -1000000;
       let href = `/view/${text(view_to_create)}?${text_attr(
         column_field
       )}=${text_attr(originalColNames[hdrName] || hdrName)}${position_setter(
