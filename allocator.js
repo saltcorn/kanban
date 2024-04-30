@@ -323,7 +323,7 @@ const run = async (
       html
     ) + "\n";
   const inner = table(
-    { class: "kanalloc" },
+    { class: "kanalloc table" },
     thead(
       tr(
         th(
