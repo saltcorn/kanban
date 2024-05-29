@@ -3,6 +3,7 @@ const Table = require("@saltcorn/data/models/table");
 const Form = require("@saltcorn/data/models/form");
 const View = require("@saltcorn/data/models/view");
 const Workflow = require("@saltcorn/data/models/workflow");
+const { jsexprToWhere } = require("@saltcorn/data/models/expression");
 
 const {
   text,
@@ -88,6 +89,12 @@ const configuration_workflow = () =>
                 name: "reload_on_drag",
                 label: "Reload page on drag",
                 type: "Bool",
+              },
+              {
+                name: "item_where",
+                label: "Where",
+                sublabel: "include the items that match this formula",
+                type: "String",
               },
               { input_type: "section_header", label: "Rows" },
               {
@@ -201,6 +208,7 @@ const run = async (
     row_field,
     col_field,
     row_where,
+    item_where,
     col_field_format,
     col_no_weekends,
     unallocated_col_label,
@@ -229,8 +237,11 @@ const run = async (
       "Kanban board incorrectly configured. Cannot find view: ",
       show_view
     );
-
-  const allocated_sresps = await sview.runMany(state, extraArgs);
+  const item_where_wh = item_where ? jsexprToWhere(item_where, {}, fields) : {};
+  const allocated_sresps = await sview.runMany(
+    { ...item_where_wh, ...state },
+    extraArgs
+  );
 
   //if state is col or row fld, also get unallocated
   if (state[row_field])
@@ -284,7 +295,9 @@ const run = async (
 
   const by_row = {};
   const row_labels = {};
-  for (const { label, value } of await row_fld.distinct_values()) {
+  const row_where_wh = row_where ? jsexprToWhere(row_where, {}, fields) : {};
+  const dvs = await row_fld.distinct_values(extraArgs.req, row_where_wh);
+  for (const { label, value } of dvs) {
     row_vals.add(value || "");
     row_labels[value || ""] = !value ? unallocated_row_label || label : label;
     if (!by_row[value || ""]) by_row[value || ""] = {};
