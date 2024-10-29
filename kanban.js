@@ -306,9 +306,9 @@ const orderedEntries = (obj, keyList) => {
   keyList.forEach((k) => {
     if (typeof obj[k] !== "undefined") entries.push([k, obj[k]]);
   });
-  Object.entries(obj).forEach(([k, v]) => {
-    if (!keyList.includes(k)) entries.push([k, v]);
-  });
+  for (const k of Object.keys(obj).sort()) {
+    if (!keyList.includes(k)) entries.push([k, obj[k]]);
+  }
   return entries;
 };
 
