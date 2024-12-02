@@ -891,9 +891,9 @@ const set_card_value = async (
       { [column_field]: colval },
       { orderBy: position_field, ...forUser }
     );
-    const before_id = parseInt(body.before_id);
+    const before_id = body.before_id;
     if (before_id) {
-      const before_ix = exrows.findIndex((row) => row.id === before_id);
+      const before_ix = exrows.findIndex((row) => row.id == before_id);
       if (before_ix === 0) newpos = exrows[0][position_field] - 1;
       else
         newpos =
@@ -913,7 +913,7 @@ const set_card_value = async (
   const upres = {};
   await table.updateRow(
     updRow,
-    parseInt(body.id),
+    body.id,
     req.user || { role_id: public_user_role },
     false,
     upres
