@@ -22,7 +22,7 @@ const {
 const {
   stateFieldsToWhere,
   readState,
-} = require("@saltcorn/data//plugin-helper");
+} = require("@saltcorn/data/plugin-helper");
 
 const { features } = require("@saltcorn/data/db/state");
 const public_user_role = features?.public_user_role || 10;

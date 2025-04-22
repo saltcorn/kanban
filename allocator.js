@@ -28,7 +28,7 @@ const {
 const {
   stateFieldsToWhere,
   readState,
-} = require("@saltcorn/data//plugin-helper");
+} = require("@saltcorn/data/plugin-helper");
 const moment = require("moment");
 
 const { features } = require("@saltcorn/data/db/state");
