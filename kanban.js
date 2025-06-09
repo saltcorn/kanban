@@ -24,6 +24,9 @@ const {
   readState,
 } = require("@saltcorn/data/plugin-helper");
 
+const db = require("@saltcorn/data/db");
+const { getState } = require("@saltcorn/data/db/state");
+
 const { features } = require("@saltcorn/data/db/state");
 const public_user_role = features?.public_user_role || 10;
 
@@ -267,6 +270,14 @@ const configuration_workflow = () =>
                 type: "String",
                 showIf: { swimlane_field: swimlaneOptions },
               },
+              {
+                name: "real_time_updates",
+                label: "Real-time updates",
+                type: "Bool",
+                sublabel: "Enable real-time updates for drag-and-drop events.",
+                default: true,
+                showIf: { disable_card_movement: false },
+              },
             ],
           });
         },
@@ -384,7 +395,9 @@ const js = (
   reload_on_drag,
   disable_column_reordering,
   swimlane_field,
-  disable_card_movement
+  disable_card_movement,
+  real_time_updates,
+  drop_event
 ) => `
   const swimlane_field=${JSON.stringify(swimlane_field)};
   var getColumnValues=function() {
@@ -437,7 +450,44 @@ const js = (
     view_post('${viewname}', 'set_card_value', dataObj, onDone(el,target, src,before));
   })`
   }
-`;
+
+  ${
+    !real_time_updates
+      ? ""
+      : `
+  const collabCfg = {
+    events: {
+      '${drop_event}': (data) => {
+        console.log("received DROP_EVENT", data);
+        const el = document.querySelector('.kanboard .kancard[data-id="' + data.id + '"]');
+        if (el) {
+          const target = document.querySelector('.kancontainer[data-column-value="' + data.${column_field} + '"]');
+          if (target) {
+            el.remove();
+            target.appendChild(el);
+            el.setAttribute('data-column-value', data.${column_field});
+          }
+          else {
+            // column is new, create it
+          }
+        }
+      }
+    },
+  };
+  init_collab_room('${viewname}', collabCfg); 
+  `
+  }`;
+
+const scriptAdder = (src) => `
+  const scriptSrc = '${src}';
+  const alreadyLoaded = Array.from(
+    document.getElementsByTagName("script")
+  ).some((script) => script.src === scriptSrc);
+  if (!alreadyLoaded) {
+    const script = document.createElement("script");
+    script.src = scriptSrc;
+    document.head.appendChild(script);
+  }`;
 
 const assign_random_positions = async (rows, position_field, table_id) => {
   var table;
@@ -480,6 +530,7 @@ const run = async (
     create_view_display,
     create_label,
     disable_card_movement,
+    real_time_updates,
   },
   state,
   extraArgs
@@ -798,6 +849,8 @@ const run = async (
       col_divs
     );
   }
+  const view = View.findOne({ name: viewname });
+  const eventName = view.getRealTimeEventName("DROP_EVENT");
   return div(
     { class: ["kanboardwrap", col_width ? "setwidth" : ""] },
     inner,
@@ -815,10 +868,15 @@ const run = async (
             reload_on_drag,
             disable_column_reordering,
             swimlane_field,
-            disable_card_movement
+            disable_card_movement,
+            real_time_updates,
+            eventName
           )
         )
-      )
+      ),
+    script(
+      scriptAdder(`/static_assets/${db.connectObj.version_tag}/socket.io.min.js`)
+    )
   );
 };
 
@@ -918,6 +976,11 @@ const set_card_value = async (
     false,
     upres
   );
+  const view = View.findOne({ name: viewname });
+  view.emitRealTimeEvent("DROP_EVENT", {
+    ...updRow,
+    id: body.id,
+  });
   return { json: { success: "ok", ...upres } };
 };
 
