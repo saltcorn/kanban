@@ -24,6 +24,9 @@ const {
   readState,
 } = require("@saltcorn/data/plugin-helper");
 
+const db = require("@saltcorn/data/db");
+const { getState } = require("@saltcorn/data/db/state");
+
 const { features } = require("@saltcorn/data/db/state");
 const public_user_role = features?.public_user_role || 10;
 
@@ -267,6 +270,14 @@ const configuration_workflow = () =>
                 type: "String",
                 showIf: { swimlane_field: swimlaneOptions },
               },
+              {
+                name: "real_time_updates",
+                label: "Real-time updates",
+                type: "Bool",
+                sublabel: "Enable real-time updates for drag-and-drop events",
+                default: true,
+                showIf: { disable_card_movement: false },
+              },
             ],
           });
         },
@@ -423,7 +434,7 @@ const js = (
       ? ""
       : `
   var els=document.querySelectorAll('.kancontainer')
-  dragula(Array.from(els), {
+  var cardDragula = dragula(Array.from(els), {
     moves: function(el, container, handle) {
       return !el.className.includes('empty-placeholder')
     }
@@ -436,8 +447,74 @@ const js = (
     }
     view_post('${viewname}', 'set_card_value', dataObj, onDone(el,target, src,before));
   })`
-  }
-`;
+  }`;
+
+const realtTimeUpdater = (view, scriptId, initCode) => `
+  const currentScript = document.getElementById('${scriptId}');
+  let realTimeView = currentScript?.closest(
+    '[data-sc-embed-viewname="${view.name}"]'
+  );
+
+  const updateKanbanView = async (viewElement) => {
+    const urlAttr = (elem) =>
+      elem?.getAttribute("data-sc-local-state") ||
+      elem?.getAttribute("data-sc-view-source");
+    let url = urlAttr(viewElement);
+    let safeElement = viewElement;
+    if (!url) {
+      safeElement = viewElement.querySelector(
+        "[data-sc-view-source], [data-sc-local-state]"
+      );
+      if (safeElement) {
+        url = urlAttr(safeElement);
+      } else {
+        console.error("No data-sc-view-source found in the view element.");
+        return null;
+      }
+    }
+    const response = await fetch(url, {
+      headers: {
+        "X-Requested-With": "XMLHttpRequest",
+        "X-Saltcorn-Reload": "true",
+        localizedstate: "true", //no admin bar
+      },
+    });
+    if (response.status === 200) {
+      const template = document.createElement("template");
+      template.innerHTML = await response.text();
+      let newViewElement = template.content.children[1];
+      if (!newViewElement.getAttribute("data-sc-embed-viewname"))
+        newViewElement = newViewElement.querySelector("[data-sc-embed-viewname]");
+      if (!newViewElement) {
+        console.error("No data-sc-embed-viewname found in the new view element.");
+        return null;
+      }
+      safeElement.replaceWith(newViewElement);
+      return newViewElement;
+    } else {
+      console.error(
+        \`Failed to fetch view from \${url}: \${response.status} \${response.statusText}\`
+      );
+      return null;
+    }
+  };
+
+  const handleRealTimeEvent = async (data) => {
+    const result = await updateKanbanView(realTimeView);
+    if (result) {
+      realTimeView = result;
+      ${initCode}
+    }
+  };
+
+  const collabCfg = {
+    events: {
+      '${view.getRealTimeEventName("UPDATE_EVENT")}': handleRealTimeEvent,
+      '${view.getRealTimeEventName("INSERT_EVENT")}': handleRealTimeEvent,
+      '${view.getRealTimeEventName("DELETE_EVENT")}': handleRealTimeEvent,
+    },
+  };
+  init_collab_room('${view.name}', collabCfg);`;
 
 const assign_random_positions = async (rows, position_field, table_id) => {
   var table;
@@ -455,6 +532,9 @@ const assign_random_positions = async (rows, position_field, table_id) => {
 
 const position_setter = (position_field, maxpos) =>
   position_field ? `&${position_field}=${Math.round(maxpos) + 2}` : "";
+
+const is_live_reload = (req) =>
+  req && req.header("X-Saltcorn-Reload") === "true";
 
 const run = async (
   table_id,
@@ -480,6 +560,7 @@ const run = async (
     create_view_display,
     create_label,
     disable_card_movement,
+    real_time_updates,
   },
   state,
   extraArgs
@@ -762,6 +843,7 @@ const run = async (
       return div(
         {
           class: "kanswimlane",
+          "data-swimlane-value": swimlane_field ? text_attr(label) : undefined,
         },
         h5({ class: "swimlanehdr" }, text(label)),
         hr(),
@@ -798,6 +880,21 @@ const run = async (
       col_divs
     );
   }
+  const initCode =
+    role <= table.min_role_write
+      ? js(
+          table.name,
+          column_field,
+          viewname,
+          reload_on_drag,
+          disable_column_reordering,
+          swimlane_field,
+          disable_card_movement
+        )
+      : "";
+  const view = View.findOne({ name: viewname });
+  const rndid = Math.random().toString(36).substring(2, 10);
+  const isLiveReload = is_live_reload(extraArgs.req);
   return div(
     { class: ["kanboardwrap", col_width ? "setwidth" : ""] },
     inner,
@@ -805,20 +902,16 @@ const run = async (
     style(
       css({ ncols, col_bg_color, col_text_color, col_width, col_width_units })
     ),
-    role <= table.min_role_write &&
-      script(
-        domReady(
-          js(
-            table.name,
-            column_field,
-            viewname,
-            reload_on_drag,
-            disable_column_reordering,
-            swimlane_field,
-            disable_card_movement
+    !isLiveReload && script(domReady(initCode)),
+    !isLiveReload && real_time_updates
+      ? script({
+          src: `/static_assets/${db.connectObj.version_tag}/socket.io.min.js`,
+        }) +
+          script(
+            { id: rndid },
+            domReady(realtTimeUpdater(view, rndid, initCode))
           )
-        )
-      )
+      : ""
   );
 };
 
@@ -918,6 +1011,11 @@ const set_card_value = async (
     false,
     upres
   );
+  const view = View.findOne({ name: viewname });
+  view.emitRealTimeEvent("DROP_EVENT", {
+    ...updRow,
+    id: body.id,
+  });
   return { json: { success: "ok", ...upres } };
 };
 
@@ -937,6 +1035,49 @@ const set_col_order = async (table_id, viewname, config, body, { req }) => {
   return { json: { success: "ok", newconfig: newConfig } };
 };
 
+const virtual_triggers = (table_id, viewname, { real_time_updates }) => {
+  return real_time_updates
+    ? [
+        {
+          when_trigger: "Insert",
+          table_id: table_id,
+          run: (row) => {
+            const view = View.findOne({ name: viewname });
+            if (view) {
+              view.emitRealTimeEvent("INSERT_EVENT", {
+                ...row,
+              });
+            }
+          },
+        },
+        {
+          when_trigger: "Update",
+          table_id: table_id,
+          run: (row) => {
+            const view = View.findOne({ name: viewname });
+            if (view) {
+              view.emitRealTimeEvent("UPDATE_EVENT", {
+                ...row,
+              });
+            }
+          },
+        },
+        {
+          when_trigger: "Delete",
+          table_id: table_id,
+          run: (row) => {
+            const view = View.findOne({ name: viewname });
+            if (view) {
+              view.emitRealTimeEvent("DELETE_EVENT", {
+                ...row,
+              });
+            }
+          },
+        },
+      ]
+    : [];
+};
+
 module.exports = {
   name: "Kanban",
   display_state_form: false,
@@ -945,4 +1086,5 @@ module.exports = {
   run,
   connectedObjects,
   routes: { set_col_order, set_card_value },
+  virtual_triggers,
 };
