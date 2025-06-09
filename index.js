@@ -1,10 +1,14 @@
 module.exports = {
   headers: [
     {
-      script: "/plugins/public/kanban/dragula.min.js",
+      script: `/plugins/public/kanban@${
+        require("./package.json").version
+      }/dragula.min.js`,
     },
     {
-      css: "/plugins/public/kanban/dragula.min.css",
+      css: `/plugins/public/kanban@${
+        require("./package.json").version
+      }/dragula.min.css`,
     },
   ],
   sc_plugin_api_version: 1,
