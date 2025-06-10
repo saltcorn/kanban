@@ -478,7 +478,8 @@ const js = (
             el.setAttribute('data-column-value', data.${column_field});
           }
           else {
-            // column is new, create it
+            // TODO create new column with the view html
+            console.warn("Column for value: " + data.${column_field} + " not found. Please refresh the page.");
           }
         }
       }
