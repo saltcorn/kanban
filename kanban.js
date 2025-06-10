@@ -458,13 +458,23 @@ const js = (
   const collabCfg = {
     events: {
       '${drop_event}': (data) => {
-        console.log("received DROP_EVENT", data);
         const el = document.querySelector('.kanboard .kancard[data-id="' + data.id + '"]');
         if (el) {
-          const target = document.querySelector('.kancontainer[data-column-value="' + data.${column_field} + '"]');
+          const columnQuery = \`[data-column-value="\${data.${column_field}}"]\`;
+          const swimlaneQuery = ${
+            swimlane_field
+              ? `data.${swimlane_field} ? \`[data-swimlane-value="\${data.${swimlane_field}}"]\` : ""`
+              : "\"\""
+          };
+          const target = document.querySelector(\`.kancontainer\${columnQuery}\${swimlaneQuery}\`);
           if (target) {
             el.remove();
             target.appendChild(el);
+            ${
+              swimlane_field
+                ? `el.setAttribute('data-swimlane-value', data.${swimlane_field})`
+                : "\"\""
+            }            
             el.setAttribute('data-column-value', data.${column_field});
           }
           else {
@@ -476,17 +486,6 @@ const js = (
   };
   init_collab_room('${viewname}', collabCfg); 
   `
-  }`;
-
-const scriptAdder = (src) => `
-  const scriptSrc = '${src}';
-  const alreadyLoaded = Array.from(
-    document.getElementsByTagName("script")
-  ).some((script) => script.src === scriptSrc);
-  if (!alreadyLoaded) {
-    const script = document.createElement("script");
-    script.src = scriptSrc;
-    document.head.appendChild(script);
   }`;
 
 const assign_random_positions = async (rows, position_field, table_id) => {
@@ -874,9 +873,11 @@ const run = async (
           )
         )
       ),
-    script(
-      scriptAdder(`/static_assets/${db.connectObj.version_tag}/socket.io.min.js`)
-    )
+    real_time_updates
+      ? script({
+          src: `/static_assets/${db.connectObj.version_tag}/socket.io.min.js`,
+        })
+      : ""
   );
 };
 
