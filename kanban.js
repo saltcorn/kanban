@@ -397,7 +397,9 @@ const js = (
   swimlane_field,
   disable_card_movement,
   real_time_updates,
-  drop_event
+  drop_event,
+  create_event,
+  show_view
 ) => `
   const swimlane_field=${JSON.stringify(swimlane_field)};
   var getColumnValues=function() {
@@ -464,7 +466,7 @@ const js = (
           const swimlaneQuery = ${
             swimlane_field
               ? `data.${swimlane_field} ? \`[data-swimlane-value="\${data.${swimlane_field}}"]\` : ""`
-              : "\"\""
+              : '""'
           };
           const target = document.querySelector(\`.kancontainer\${columnQuery}\${swimlaneQuery}\`);
           if (target) {
@@ -473,7 +475,7 @@ const js = (
             ${
               swimlane_field
                 ? `el.setAttribute('data-swimlane-value', data.${swimlane_field})`
-                : "\"\""
+                : '""'
             }            
             el.setAttribute('data-column-value', data.${column_field});
           }
@@ -482,7 +484,31 @@ const js = (
             console.warn("Column for value: " + data.${column_field} + " not found. Please refresh the page.");
           }
         }
-      }
+      },
+      '${create_event}': async (data) => {
+        const target = document.querySelector('.kanboard .kancontainer[data-column-value="' + data.${column_field} + '"]');
+        if (target) {
+          const response = await fetch('/view/${show_view}?id=' + data.id, {
+            headers: {
+              localizedstate: "true",
+              "X-Requested-With": "XMLHttpRequest",
+            }
+          });
+          if (response.status === 200) {
+            const html = await response.text();
+            const cardHtml = \`<div 
+  class="kancard card" 
+  data-id="\${data.id}"
+  onclick="ajax_modal('/view/${show_view}?id=\${data.id}')"
+>
+  \${html}
+</div>\`;
+            const newCard = document.createElement("div");
+            newCard.innerHTML = cardHtml;
+            target.appendChild(newCard.firstChild);
+          }
+        }
+      },
     },
   };
   init_collab_room('${viewname}', collabCfg); 
@@ -850,7 +876,8 @@ const run = async (
     );
   }
   const view = View.findOne({ name: viewname });
-  const eventName = view.getRealTimeEventName("DROP_EVENT");
+  const dropEventName = view.getRealTimeEventName("DROP_EVENT");
+  const createEventName = view.getRealTimeEventName("INSERT_EVENT");
   return div(
     { class: ["kanboardwrap", col_width ? "setwidth" : ""] },
     inner,
@@ -870,7 +897,9 @@ const run = async (
             swimlane_field,
             disable_card_movement,
             real_time_updates,
-            eventName
+            dropEventName,
+            createEventName,
+            show_view
           )
         )
       ),
@@ -1002,6 +1031,23 @@ const set_col_order = async (table_id, viewname, config, body, { req }) => {
   return { json: { success: "ok", newconfig: newConfig } };
 };
 
+const virtual_triggers = (table_id, viewname, { column_field }) => {
+  return [
+    {
+      when_trigger: "Insert",
+      table_id: table_id,
+      run: (row) => {
+        const view = View.findOne({ name: viewname });
+        if (view) {
+          view.emitRealTimeEvent("INSERT_EVENT", {
+            ...row,
+          });
+        }
+      },
+    },
+  ];
+};
+
 module.exports = {
   name: "Kanban",
   display_state_form: false,
@@ -1010,4 +1056,5 @@ module.exports = {
   run,
   connectedObjects,
   routes: { set_col_order, set_card_value },
+  virtual_triggers,
 };
