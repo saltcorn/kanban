@@ -399,7 +399,9 @@ const js = (
   real_time_updates,
   drop_event,
   create_event,
-  show_view
+  show_view,
+  create_label,
+  view_to_create
 ) => `
   const swimlane_field=${JSON.stringify(swimlane_field)};
   var getColumnValues=function() {
@@ -438,7 +440,7 @@ const js = (
       ? ""
       : `
   var els=document.querySelectorAll('.kancontainer')
-  dragula(Array.from(els), {
+  var cardDragula = dragula(Array.from(els), {
     moves: function(el, container, handle) {
       return !el.className.includes('empty-placeholder')
     }
@@ -457,56 +459,169 @@ const js = (
     !real_time_updates
       ? ""
       : `
-  const collabCfg = {
-    events: {
-      '${drop_event}': (data) => {
-        const el = document.querySelector('.kanboard .kancard[data-id="' + data.id + '"]');
-        if (el) {
-          const columnQuery = \`[data-column-value="\${data.${column_field}}"]\`;
-          const swimlaneQuery = ${
-            swimlane_field
-              ? `data.${swimlane_field} ? \`[data-swimlane-value="\${data.${swimlane_field}}"]\` : ""`
-              : '""'
-          };
-          const target = document.querySelector(\`.kancontainer\${columnQuery}\${swimlaneQuery}\`);
-          if (target) {
-            el.remove();
-            target.appendChild(el);
-            ${
-              swimlane_field
-                ? `el.setAttribute('data-swimlane-value', data.${swimlane_field})`
-                : '""'
-            }            
-            el.setAttribute('data-column-value', data.${column_field});
-          }
-          else {
-            // TODO create new column with the view html
-            console.warn("Column for value: " + data.${column_field} + " not found. Please refresh the page.");
-          }
-        }
-      },
-      '${create_event}': async (data) => {
-        const target = document.querySelector('.kanboard .kancontainer[data-column-value="' + data.${column_field} + '"]');
-        if (target) {
-          const response = await fetch('/view/${show_view}?id=' + data.id, {
-            headers: {
-              localizedstate: "true",
-              "X-Requested-With": "XMLHttpRequest",
-            }
-          });
-          if (response.status === 200) {
-            const html = await response.text();
-            const cardHtml = \`<div 
+
+  const buildNewCard = async (data) => {
+    const response = await fetch('/view/${show_view}?id=' + data.id, {
+      headers: {
+        localizedstate: "true",
+        "X-Requested-With": "XMLHttpRequest",
+      }
+    });
+    if (response.status === 200) {
+      const html = await response.text();
+      const cardHtml = \`<div 
   class="kancard card" 
   data-id="\${data.id}"
   onclick="ajax_modal('/view/${show_view}?id=\${data.id}')"
 >
   \${html}
 </div>\`;
-            const newCard = document.createElement("div");
-            newCard.innerHTML = cardHtml;
-            target.appendChild(newCard.firstChild);
+      const newCard = document.createElement("div");
+      newCard.innerHTML = cardHtml;
+      return newCard.firstChild;
+    }
+  }
+
+  const buildNewColumn = (data) => {
+    const swimlaneValue = ${swimlane_field ? `data.${swimlane_field}` : '""'};
+    const template = document.createElement("template");
+    template.innerHTML = \`
+  <div class="kancolwrap col">  
+    <div class="kancol card p-1">
+      <div class="card-header d-flex justify-content-between">
+        <h6 class="card-title">\${data.${column_field}}</h6>
+      </div>
+      <div 
+        class="kancontainer" 
+        data-column-value="\${data.${column_field}}"
+        ${swimlane_field ? `data-swimlane-value="\${swimlaneValue}"` : ""}
+      >
+        <div class="kancard kancard-empty-placeholder">
+          <i>(empty)</i>
+        </div>
+      </div>
+      <div class="card-footer">
+        <a class="card-link" href="/view/${view_to_create}?column_field=\${data.${column_field}}">
+          <i class="fas fa-plus-circle me-1"></i>${
+            create_label || "Add new card"
           }
+        </a>
+      </div>
+    </div>
+  </diV>\`.trim();;
+    return template.content.firstElementChild;
+  }
+
+  const updateRowCols = (kanboardDiv) => {
+    const colWraps = kanboardDiv.querySelectorAll(".kancolwrap");
+    const classes = kanboardDiv.classList;
+    for (let i = 0; i < classes.length; i++) {
+      if (classes[i].startsWith("row-cols-")) {
+        const oldCols = parseInt(classes[i].split("-")[2]);
+        const newCols = colWraps.length;
+        if (newCols > oldCols) {
+          const newClass = "row-cols-" + colWraps.length;
+          kanboardDiv.classList.remove(classes[i]);
+          kanboardDiv.classList.add(newClass);
+        }
+        break;
+      }
+    }
+  }
+
+    
+  const addColToKanboardDiv = (kanboardDiv, data, movingCard, targetColQuery) => {
+    kanboardDiv.appendChild(buildNewColumn(data));                
+    const newTargetCol = kanboardDiv.querySelector(targetColQuery);
+    if (!newTargetCol)
+      console.error("New target column not found for drop event.");
+    else {
+      newTargetCol.appendChild(movingCard);
+      cardDragula.containers.push(newTargetCol);
+      updateRowCols(kanboardDiv);
+    }
+  }
+
+  const collabCfg = {
+    events: {
+      '${drop_event}': (data) => {
+        const movingCard = document.querySelector('.kanboard .kancard[data-id="' + data.id + '"]');
+        if (movingCard) {
+          const colValue = data.${column_field};
+          const swimlaneValue = ${
+            swimlane_field ? `data.${swimlane_field}` : '""'
+          };
+          const columnQuery = \`[data-column-value="\${colValue}"]\`;
+          const swimlaneQuery = ${
+            swimlane_field
+              ? `swimlaneValue ? \`[data-swimlane-value="\${swimlaneValue}"]\` : ""`
+              : '""'
+          };
+          const targetColQuery = \`.kancontainer\${columnQuery}\${swimlaneQuery}\`;
+          const targetCol = document.querySelector(targetColQuery);
+          if (targetCol) {
+            ${
+              swimlane_field
+                ? `movingCard.setAttribute('data-swimlane-value', swimlaneValue)`
+                : '""'
+            }            
+            movingCard.setAttribute('data-column-value', data.${column_field});
+            targetCol.appendChild(movingCard);
+          }
+          else {
+            // create new col
+            let kanboardDiv;
+            if (swimlaneQuery) {
+              const swimlaneDiv = document.querySelector(
+                \`.kanswimlane[data-swimlane-value="\${swimlaneValue}"]\`
+              );
+              if (!swimlaneDiv) {
+                // swimlane wasn't there yet, TODO create empty swimlane
+                console.error("Swimlane div not found for drop event.");
+              }
+              else kanboardDiv = swimlaneDiv.querySelector(".kanboard");
+            }
+            else kanboardDiv = document.querySelector(".kanboard");
+            addColToKanboardDiv(kanboardDiv, data, movingCard, targetColQuery);
+          }
+        }
+        else {
+          // card wasn't there yet, TODO load it via ajax
+          console.error("Card with id " + data.id + " not found for drop event.");
+        }
+      },
+      '${create_event}': async (data) => {
+        const colValue = data.${column_field};
+        const swimlaneValue = ${
+          swimlane_field ? `data.${swimlane_field}` : '""'
+        };
+        const columnQuery = \`[data-column-value="\${colValue}"]\`;
+        const swimlaneQuery = ${
+          swimlane_field
+            ? `swimlaneValue ? \`[data-swimlane-value="\${swimlaneValue}"]\` : ""`
+            : '""'
+        };
+        const targetColQuery = \`.kancontainer\${columnQuery}\${swimlaneQuery}\`;
+        const targetCol = document.querySelector(targetColQuery);
+        const newCard = await buildNewCard(data);
+        if (targetCol) {
+          targetCol.appendChild(newCard);          
+        }
+        else {
+          // create new col
+          let kanboardDiv;
+          if (swimlaneQuery) {
+            const swimlaneDiv = document.querySelector(
+              \`.kanswimlane[data-swimlane-value="\${swimlaneValue}"]\`
+            );
+            if (!swimlaneDiv) {
+              // swimlane wasn't there yet, TODO create empty swimlane
+              console.error("Swimlane div not found for create event.");
+            }
+            else kanboardDiv = swimlaneDiv.querySelector(".kanboard");
+          }
+          else kanboardDiv = document.querySelector(".kanboard");
+          addColToKanboardDiv(kanboardDiv, data, newCard, targetColQuery);
         }
       },
     },
@@ -839,6 +954,7 @@ const run = async (
       return div(
         {
           class: "kanswimlane",
+          "data-swimlane-value": swimlane_field ? text_attr(label) : undefined,
         },
         h5({ class: "swimlanehdr" }, text(label)),
         hr(),
@@ -899,7 +1015,9 @@ const run = async (
             real_time_updates,
             dropEventName,
             createEventName,
-            show_view
+            show_view,
+            create_label,
+            view_to_create
           )
         )
       ),
