@@ -502,6 +502,28 @@ const run = async (
       ${
         real_time_updates
           ? `
+      const buildNewCard = async (data) => {
+        const response = await fetch('/view/${show_view}?id=' + data.id, {
+          headers: {
+            localizedstate: "true",
+            "X-Requested-With": "XMLHttpRequest",
+          }
+        });
+        if (response.status === 200) {
+          const html = await response.text();
+          const template = document.createElement("template");
+          template.innerHTML = \`
+<div 
+  class="kancard card" 
+  data-id="\${data.id}"
+  onclick="ajax_modal('/view/${show_view}?id=\${data.id}')"
+>
+  \${html}
+</div>\`.trim();
+          return template.content.firstElementChild;
+        }
+      }
+
       const collabCfg = {
         events: {
           '${view.getRealTimeEventName("UPDATE_EVENT")}': (data) => {
@@ -524,6 +546,28 @@ const run = async (
               else console.warn('Unallocated target not found for card:', cardId);
             } else {
               console.warn('Card not found:', cardId);
+            }
+          },
+          '${view.getRealTimeEventName("INSERT_EVENT")}': async (data) => {
+            const card = await buildNewCard(data);
+            const targetRow = data.${row_field};
+            const targetCol = data.${col_field};
+            const targetQuery = !targetRow && !targetCol
+              ? '.unalloc.alloctarget'
+              : \`.alloctarget[data-row-val="\${targetRow}"][data-col-val="\${targetCol}"]\`;
+            const target = document.querySelector(targetQuery);
+            if (target) {
+              target.appendChild(card);
+            } else {
+              console.warn('Target not found for new card:', targetQuery);
+            }
+          },
+          '${view.getRealTimeEventName("DELETE_EVENT")}': (data) => {
+            const cardId = data.id;
+            const card = document.querySelector('.kancard[data-id="' + cardId + '"]');
+            if (card) card.remove();
+            else {
+              console.warn('Card not found for deletion:', cardId);
             }
           }
         }

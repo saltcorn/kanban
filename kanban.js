@@ -508,7 +508,7 @@ const js = (
         </a>
       </div>
     </div>
-  </diV>\`.trim();;
+  </diV>\`.trim();
     return template.content.firstElementChild;
   }
 
