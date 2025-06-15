@@ -626,7 +626,7 @@ const js = (
       },
     },
   };
-  init_collab_room('${viewname}', collabCfg); 
+  init_collab_room('${viewname}', collabCfg);
   `
   }`;
 

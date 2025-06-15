@@ -32,6 +32,8 @@ const {
 const moment = require("moment");
 
 const { features } = require("@saltcorn/data/db/state");
+const db = require("@saltcorn/data/db");
+
 const public_user_role = features?.public_user_role || 10;
 
 const configuration_workflow = () =>
@@ -177,6 +179,17 @@ const configuration_workflow = () =>
                 label: "Label background color",
                 type: "Color",
               },
+              {
+                input_type: "section_header",
+                label: "Real-time collaboration",
+              },
+              {
+                name: "real_time_updates",
+                label: "Real-time updates",
+                type: "Bool",
+                sublabel: "Enable real-time updates for drag-and-drop events.",
+                default: true,
+              },
             ],
           });
         },
@@ -218,6 +231,7 @@ const run = async (
     grid_color,
     label_background_color,
     label_color,
+    real_time_updates,
   },
   state,
   extraArgs
@@ -322,6 +336,7 @@ const run = async (
   const tableWidth = col_width
     ? cols.length * col_width + row_hdr_width + unalloc_area_width
     : undefined;
+  const view = View.findOne({ name: viewname });
   //console.log(Object.keys(by_row));
   //console.log(Object.keys(by_row[""]));
   const show_item = ({ row, html }) =>
@@ -483,8 +498,45 @@ const run = async (
     dataObj.${row_field}=$(target).attr('data-row-val');      
     view_post('${viewname}', 'set_card_value', dataObj, onDone);
   })
+
+      ${
+        real_time_updates
+          ? `
+      const collabCfg = {
+        events: {
+          '${view.getRealTimeEventName("UPDATE_EVENT")}': (data) => {
+            const cardId = data.id;
+            const targetRow = data.${row_field};
+            const targetCol = data.${col_field};
+            const card = document.querySelector('.kancard[data-id="' + cardId + '"]');
+            if (card) {
+              const rowQuery = targetRow
+                ? '[data-row-val="' + targetRow + '"]'
+                : '[data-row-val=""]';
+              const colQuery = targetCol
+                ? '[data-col-val="' + targetCol + '"]'
+                : '[data-col-val=""]' ;
+              const targetQuery = !targetRow && !targetCol
+                ? '.unalloc.alloctarget'
+                : \`.alloctarget\${rowQuery}\${colQuery}\`;
+              const target = document.querySelector(targetQuery);
+              if (target) target.appendChild(card);
+              else console.warn('Unallocated target not found for card:', cardId);
+            } else {
+              console.warn('Card not found:', cardId);
+            }
+          }
+        }
+      };
+      init_collab_room('${viewname}', collabCfg);`
+          : ""
+      }
+
     `)
-    )
+    ),
+    script({
+      src: `/static_assets/${db.connectObj.version_tag}/socket.io.min.js`,
+    })
   );
 };
 
@@ -549,6 +601,50 @@ const set_card_value = async (
   return { json: { success: "ok" } };
 };
 
+const virtual_triggers = (table_id, viewname, { column_field }) => {
+  return [
+    {
+      when_trigger: "Insert",
+      table_id: table_id,
+      run: (row) => {
+        // console.log(`Virtual trigger for insert on ${viewname} with row:`, row);
+        const view = View.findOne({ name: viewname });
+        if (view) {
+          view.emitRealTimeEvent("INSERT_EVENT", {
+            ...row,
+          });
+        }
+      },
+    },
+    {
+      when_trigger: "Update",
+      table_id: table_id,
+      run: (row) => {
+        // console.log(`Virtual trigger for update on ${viewname} with row:`, row);
+        const view = View.findOne({ name: viewname });
+        if (view) {
+          view.emitRealTimeEvent("UPDATE_EVENT", {
+            ...row,
+          });
+        }
+      },
+    },
+    {
+      when_trigger: "Delete",
+      table_id: table_id,
+      run: (row) => {
+        // console.log(`Virtual trigger for delete on ${viewname} with row:`, row);
+        const view = View.findOne({ name: viewname });
+        if (view) {
+          view.emitRealTimeEvent("DELETE_EVENT", {
+            ...row,
+          });
+        }
+      },
+    },
+  ];
+};
+
 module.exports = {
   name: "KanbanAllocator",
   display_state_form: false,
@@ -557,6 +653,7 @@ module.exports = {
   run,
   connectedObjects,
   routes: { set_card_value },
+  virtual_triggers,
 };
 
 /*to do
