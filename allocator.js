@@ -505,7 +505,7 @@ const run = async (
 
     script(
       domReady(`
-        ${isLiveReload ? initCode : ""}
+        ${!isLiveReload ? initCode : ""}
         ${
           real_time_updates
             ? `
