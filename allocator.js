@@ -448,8 +448,9 @@ const run = async (
     }
   }).on('drop', function (el,target, src,before) {
     var dataObj={ id: $(el).attr('data-id') }
-    dataObj.${col_field}=$(target).attr('data-col-val');   
-    dataObj.${row_field}=$(target).attr('data-row-val');      
+    dataObj.${col_field}=$(target).attr('data-col-val');
+    dataObj.${row_field}=$(target).attr('data-row-val');
+    window.ignoreKanbanEvent${rndid} = true;
     view_post('${viewname}', 'set_card_value', dataObj, onDone);
   })
 `;
@@ -558,6 +559,10 @@ const run = async (
   };
 
   const handleRealTimeEvent = async (data) => {
+    if (window.ignoreKanbanEvent${rndid}) {
+      window.ignoreKanbanEvent${rndid} = false;
+      return;
+    }
     const result = await updateKanbanView(realTimeView);
     if (result) {
       realTimeView = result;

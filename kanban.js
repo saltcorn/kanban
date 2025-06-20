@@ -395,7 +395,8 @@ const js = (
   reload_on_drag,
   disable_column_reordering,
   swimlane_field,
-  disable_card_movement
+  disable_card_movement,
+  rndid
 ) => `
   const swimlane_field=${JSON.stringify(swimlane_field)};
   var getColumnValues=function() {
@@ -413,6 +414,7 @@ const js = (
     }
   }
   var reportColumnValues=function(){
+    window.ignoreKanbanEvent${rndid} = true;
     view_post('${viewname}', 'set_col_order', getColumnValues());
   }
   ${
@@ -445,12 +447,13 @@ const js = (
     if(swimlane_field) {
       dataObj[swimlane_field]=$(target).attr('data-swimlane-value')
     }
+    window.ignoreKanbanEvent${rndid} = true;
     view_post('${viewname}', 'set_card_value', dataObj, onDone(el,target, src,before));
   })`
   }`;
 
-const realtTimeUpdater = (view, scriptId, initCode) => `
-  const currentScript = document.getElementById('${scriptId}');
+const realtTimeUpdater = (view, rndid, initCode) => `
+  const currentScript = document.getElementById('${rndid}');
   let realTimeView = currentScript?.closest(
     '[data-sc-embed-viewname="${view.name}"]'
   );
@@ -500,6 +503,10 @@ const realtTimeUpdater = (view, scriptId, initCode) => `
   };
 
   const handleRealTimeEvent = async (data) => {
+    if (window.ignoreKanbanEvent${rndid}) {
+      window.ignoreKanbanEvent${rndid} = false;
+      return;
+    }
     const result = await updateKanbanView(realTimeView);
     if (result) {
       realTimeView = result;
@@ -512,6 +519,7 @@ const realtTimeUpdater = (view, scriptId, initCode) => `
       '${view.getRealTimeEventName("UPDATE_EVENT")}': handleRealTimeEvent,
       '${view.getRealTimeEventName("INSERT_EVENT")}': handleRealTimeEvent,
       '${view.getRealTimeEventName("DELETE_EVENT")}': handleRealTimeEvent,
+      '${view.getRealTimeEventName("CONFIG_EVENT")}': handleRealTimeEvent,
     },
   };
   init_collab_room('${view.name}', collabCfg);`;
@@ -880,6 +888,7 @@ const run = async (
       col_divs
     );
   }
+  const rndid = Math.random().toString(36).substring(2, 10);
   const initCode =
     role <= table.min_role_write
       ? js(
@@ -889,11 +898,11 @@ const run = async (
           reload_on_drag,
           disable_column_reordering,
           swimlane_field,
-          disable_card_movement
+          disable_card_movement,
+          rndid,
         )
       : "";
   const view = View.findOne({ name: viewname });
-  const rndid = Math.random().toString(36).substring(2, 10);
   const isLiveReload = is_live_reload(extraArgs.req);
   return div(
     { class: ["kanboardwrap", col_width ? "setwidth" : ""] },
@@ -1032,6 +1041,7 @@ const set_col_order = async (table_id, viewname, config, body, { req }) => {
     configuration: { ...view.configuration, column_order: [...new Set(body)] },
   };
   await View.update(newConfig, view.id);
+  view.emitRealTimeEvent("CONFIG_EVENT", {});
   return { json: { success: "ok", newconfig: newConfig } };
 };
 
