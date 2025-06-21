@@ -212,7 +212,7 @@ const get_state_fields = async (table_id, viewname, { show_view }) => {
 const isWeekend = (date) => ((d) => d === 0 || d === 6)(date.getDay());
 
 const is_live_reload = (req) =>
-  req && req.header("X-Saltcorn-Reload") === "true";
+  req?.header && req.header["X-Saltcorn-Reload"] === "true";
 
 const run = async (
   table_id,

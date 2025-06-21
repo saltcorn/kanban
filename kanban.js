@@ -542,7 +542,7 @@ const position_setter = (position_field, maxpos) =>
   position_field ? `&${position_field}=${Math.round(maxpos) + 2}` : "";
 
 const is_live_reload = (req) =>
-  req && req.header("X-Saltcorn-Reload") === "true";
+  req?.header && req.header["X-Saltcorn-Reload"] === "true";
 
 const run = async (
   table_id,
