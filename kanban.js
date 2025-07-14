@@ -4,6 +4,7 @@ const Form = require("@saltcorn/data/models/form");
 const View = require("@saltcorn/data/models/view");
 const { jsexprToWhere } = require("@saltcorn/data/models/expression");
 const Workflow = require("@saltcorn/data/models/workflow");
+const { isWeb } = require("@saltcorn/data/utils");
 
 const {
   text,
@@ -415,7 +416,7 @@ const js = (
   }
   var reportColumnValues=function(){
     window.ignoreKanbanEvent${rndid} = true;
-    view_post('${viewname}', 'set_col_order', getColumnValues()); // TODO
+    view_post('${viewname}', 'set_col_order', getColumnValues());
   }
   ${
     disable_column_reordering
@@ -448,7 +449,7 @@ const js = (
       dataObj[swimlane_field]=$(target).attr('data-swimlane-value')
     }
     window.ignoreKanbanEvent${rndid} = true;
-    view_post('${viewname}', 'set_card_value', dataObj, onDone(el,target, src,before)); // TODO
+    view_post('${viewname}', 'set_card_value', dataObj, onDone(el,target, src,before));
   })`
   }`;
 
@@ -683,7 +684,9 @@ const run = async (
         swimlane_field ? `&${swimlane_field}=${swimVal}` : ""
       }${state_fields_qs}`;
       if (create_view_display === "Popup")
-        href = `javascript:ajax_modal('${href}')`; // TODO
+        href = `javascript:ajax_modal('${href}')`;
+      else if (!isWeb(extraArgs.req) && create_view_display === "Link")
+        href = `javascript:execLink('${href}')`;
       return div(
         { class: ["kancolwrap", col_width ? "setwidth" : "col"] },
         div(
@@ -1057,6 +1060,7 @@ const set_col_order = async (table_id, viewname, config, body, { req }) => {
     configuration: { ...view.configuration, column_order: [...new Set(body)] },
   };
   await View.update(newConfig, view.id);
+  await getState().refresh_views(); // view update uses noSignal
   view.emitRealTimeEvent("CONFIG_EVENT", {});
   return { json: { success: "ok", newconfig: newConfig } };
 };
