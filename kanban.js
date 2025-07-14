@@ -1111,7 +1111,7 @@ const virtual_triggers = (table_id, viewname, { real_time_updates }) => {
 module.exports = {
   name: "Kanban",
   display_state_form: false,
-  mobile_server_side: true,
+  mobile_render_server_side: true,
   get_state_fields,
   configuration_workflow,
   run,
