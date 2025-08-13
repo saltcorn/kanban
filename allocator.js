@@ -391,7 +391,7 @@ const run = async (
           i === 0
             ? th(
                 {
-                  class: "unalloc alloctarget",
+                  class: "unalloc alloctarget kantouchaction",
                   style: {
                     width: `${unalloc_area_width}px`,
                   },
@@ -424,7 +424,7 @@ const run = async (
                     style: {
                       width: col_width ? `${col_width}px` : defWidth,
                     },
-                    class: "alloctarget",
+                    class: "alloctarget kantouchaction",
                     "data-row-val": rv,
                     "data-col-val": c,
                   },
@@ -500,6 +500,9 @@ const run = async (
       background:  ${label_background_color || `white`};
       color:  ${label_color || `black`};
       z-index: 1;
+    }
+    .kantouchaction {
+      touch-action: none;
     }
     `),
 
@@ -709,11 +712,10 @@ module.exports = {
   connectedObjects,
   routes: { set_card_value },
   virtual_triggers,
+  mobile_render_server_side: true,
 };
 
 /*to do
 
 1. time cols
-2. real-time updates
-   - correct the width when adding a new column
 */
