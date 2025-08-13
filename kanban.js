@@ -385,7 +385,9 @@ const css = ({
   }
   .kanswimlane hr {
     margin: 0.2rem 0;    
-
+  }
+  .kantouchaction {
+    touch-action: none;
   }
 `;
 
@@ -712,7 +714,7 @@ const run = async (
           ),
           div(
             {
-              class: "kancontainer",
+              class: "kancontainer kantouchaction",
               "data-column-value": text_attr(hdrName),
               "data-swimlane-value": swimlane_field
                 ? text_attr(swimVal)
