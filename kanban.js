@@ -4,6 +4,7 @@ const Form = require("@saltcorn/data/models/form");
 const View = require("@saltcorn/data/models/view");
 const { jsexprToWhere } = require("@saltcorn/data/models/expression");
 const Workflow = require("@saltcorn/data/models/workflow");
+const { isWeb } = require("@saltcorn/data/utils");
 
 const {
   text,
@@ -43,14 +44,14 @@ const configuration_workflow = () =>
             context.table_id,
             ({ state_fields, viewtemplate, viewrow }) =>
               (viewtemplate?.runMany || viewtemplate?.renderRows) &&
-              viewrow.name !== context.viewname
+              viewrow.name !== context.viewname,
           );
           const show_view_opts = show_views.map((v) => v.name);
 
           const expand_views = await View.find_table_views_where(
             context.table_id,
             ({ state_fields, viewtemplate, viewrow }) =>
-              viewrow.name !== context.viewname
+              viewrow.name !== context.viewname,
           );
           const expand_view_opts = expand_views.map((v) => v.name);
 
@@ -58,7 +59,7 @@ const configuration_workflow = () =>
             context.table_id,
             ({ state_fields, viewrow }) =>
               viewrow.name !== context.viewname &&
-              state_fields.every((sf) => !sf.required)
+              state_fields.every((sf) => !sf.required),
           );
           const create_view_opts = create_views.map((v) => v.name);
           const swimlaneOptions = fields.map((f) => f.name);
@@ -79,7 +80,7 @@ const configuration_workflow = () =>
                       const reffields2 = await reftable2.getFields();
                       reffields2.forEach((f2) => {
                         swimlaneOptions.push(
-                          `${field.name}.${f.name}.${f2.name}`
+                          `${field.name}.${f.name}.${f2.name}`,
                         );
                       });
                     }
@@ -384,7 +385,9 @@ const css = ({
   }
   .kanswimlane hr {
     margin: 0.2rem 0;    
-
+  }
+  .kantouchaction {
+    touch-action: none;
   }
 `;
 
@@ -396,7 +399,7 @@ const js = (
   disable_column_reordering,
   swimlane_field,
   disable_card_movement,
-  rndid
+  rndid,
 ) => `
   const swimlane_field=${JSON.stringify(swimlane_field)};
   var getColumnValues=function() {
@@ -458,6 +461,41 @@ const realtTimeUpdater = (view, rndid, initCode) => `
     '[data-sc-embed-viewname="${view.name}"]'
   );
 
+  const isMobile = parent?.saltcorn?.data?.state !== undefined;
+
+  const viewLoader = async (url) => {
+    let response = null;
+    if (!isMobile) {
+      response = await fetch(url, {
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          "X-Saltcorn-Reload": "true",
+          localizedstate: "true", //no admin bar
+        },
+      });
+    }
+    else {
+      response = await parent.saltcorn.mobileApp.api.apiCall({
+        method: "GET",
+        path: url,
+        additionalHeaders: {
+          "X-Requested-With": "XMLHttpRequest",
+          "X-Saltcorn-Reload": "true", //no admin bar
+        },
+      });
+    }
+    if (response.status === 200) {
+      const template = document.createElement("template");
+      template.innerHTML = !isMobile ? await response.text() : response.data;
+      return template.content.children[0];
+    } else {
+      console.error(
+        \`Failed to fetch view from \${url}: \${response.status} \${response.statusText}\`
+      );
+      return null;
+    }
+  };
+
   const updateKanbanView = async (viewElement) => {
     const urlAttr = (elem) =>
       elem?.getAttribute("data-sc-local-state") ||
@@ -475,31 +513,16 @@ const realtTimeUpdater = (view, rndid, initCode) => `
         return null;
       }
     }
-    const response = await fetch(url, {
-      headers: {
-        "X-Requested-With": "XMLHttpRequest",
-        "X-Saltcorn-Reload": "true",
-        localizedstate: "true", //no admin bar
-      },
-    });
-    if (response.status === 200) {
-      const template = document.createElement("template");
-      template.innerHTML = await response.text();
-      let newViewElement = template.content.children[1];
-      if (!newViewElement.getAttribute("data-sc-embed-viewname"))
-        newViewElement = newViewElement.querySelector("[data-sc-embed-viewname]");
-      if (!newViewElement) {
-        console.error("No data-sc-embed-viewname found in the new view element.");
-        return null;
-      }
-      safeElement.replaceWith(newViewElement);
-      return newViewElement;
-    } else {
-      console.error(
-        \`Failed to fetch view from \${url}: \${response.status} \${response.statusText}\`
-      );
+
+    let newViewElement = await viewLoader(url); 
+    if (!newViewElement.getAttribute("data-sc-embed-viewname"))
+      newViewElement = newViewElement.querySelector("[data-sc-embed-viewname]");
+    if (!newViewElement) {
+      console.error("No data-sc-embed-viewname found in the new view element.");
       return null;
     }
+    safeElement.replaceWith(newViewElement);
+    return newViewElement;
   };
 
   const handleRealTimeEvent = async (data) => {
@@ -571,7 +594,7 @@ const run = async (
     real_time_updates,
   },
   state,
-  extraArgs
+  extraArgs,
 ) => {
   const table = await Table.findOne({ id: table_id });
   const fields = await table.getFields();
@@ -584,7 +607,7 @@ const run = async (
     return div(
       { class: "alert alert-danger" },
       "Kanban board incorrectly configured. Cannot find view: ",
-      show_view
+      show_view,
     );
   const forUser = {
     forUser: extraArgs.req.user || { role_id: public_user_role },
@@ -607,7 +630,7 @@ const run = async (
           {
             [lblField]: v,
           },
-          forUser
+          forUser,
         );
         restrictColsTo = new Set(validColRows.map((r) => r.id));
       }
@@ -655,15 +678,17 @@ const run = async (
     ([hdrName, vs]) => {
       let maxpos = -1000000;
       let href = `/view/${text(view_to_create)}?${text_attr(
-        column_field
+        column_field,
       )}=${text_attr(originalColNames[hdrName] || hdrName)}${position_setter(
         position_field,
-        maxpos
+        maxpos,
       )}${
         swimlane_field ? `&${swimlane_field}=${swimVal}` : ""
       }${state_fields_qs}`;
       if (create_view_display === "Popup")
         href = `javascript:ajax_modal('${href}')`;
+      else if (!isWeb(extraArgs.req) && create_view_display === "Link")
+        href = `javascript:execLink('${href}')`;
       return div(
         { class: ["kancolwrap", col_width ? "setwidth" : "col"] },
         div(
@@ -684,12 +709,12 @@ const run = async (
                   class: "card-link",
                   href,
                 },
-                i({ class: "fas fa-plus-circle me-1" })
-              )
+                i({ class: "fas fa-plus-circle me-1" }),
+              ),
           ),
           div(
             {
-              class: "kancontainer",
+              class: "kancontainer kantouchaction",
               "data-column-value": text_attr(hdrName),
               "data-swimlane-value": swimlane_field
                 ? text_attr(swimVal)
@@ -699,7 +724,7 @@ const run = async (
               {
                 class: "kancard kancard-empty-placeholder",
               },
-              i("(empty)")
+              i("(empty)"),
             ),
             sortCol(vs || []).map(({ row, html }) => {
               if (position_field && row[position_field] > maxpos)
@@ -710,13 +735,13 @@ const run = async (
                     class: "kancard card",
                     "data-id": text(row.id),
                     ...(expand_view && {
-                      onClick: `ajax_modal('/view/${expand_view}?id=${row.id}')`,
+                      onClick: `ajax_modal('/view/${expand_view}?id=${row.id}')`, // TODO
                     }),
                   },
-                  html
+                  html,
                 ) + "\n"
               );
-            })
+            }),
           ),
           view_to_create &&
             role <= table.min_role_write &&
@@ -729,10 +754,10 @@ const run = async (
                   href,
                 },
                 i({ class: "fas fa-plus-circle me-1" }),
-                create_label || "Add new card"
-              )
-            )
-        )
+                create_label || "Add new card",
+              ),
+            ),
+        ),
       );
     };
   let inner;
@@ -802,7 +827,7 @@ const run = async (
             if (!columnFilterData[colrow._column])
               columnFilterData[colrow._column] = new Set();
             columnFilterData[colrow._column].add(
-              colrow[refField.attributes.summary_field]
+              colrow[refField.attributes.summary_field],
             );
           });
         }
@@ -839,12 +864,12 @@ const run = async (
         mycols[k] = cols[k].filter(
           ({ row }) =>
             swimlane_accesssor(row) === value ||
-            (!value && !swimlane_accesssor(row))
+            (!value && !swimlane_accesssor(row)),
         );
       });
 
       const col_divs = orderedEntries(mycols, use_column_order || []).map(
-        get_col_divs(value)
+        get_col_divs(value),
       );
 
       if (col_divs.length === 0) return "";
@@ -869,14 +894,14 @@ const run = async (
                 col_width ? "setwidth" : `row row-cols-${col_divs.length}`,
               ],
             },
-            col_divs
-          )
-        )
+            col_divs,
+          ),
+        ),
       );
     });
   } else {
     const col_divs = orderedEntries(cols, use_column_order || []).map(
-      get_col_divs(null)
+      get_col_divs(null),
     );
     inner = div(
       {
@@ -885,7 +910,7 @@ const run = async (
           col_width ? "setwidth" : `row row-cols-${col_divs.length}`,
         ],
       },
-      col_divs
+      col_divs,
     );
   }
   const rndid = Math.random().toString(36).substring(2, 10);
@@ -909,18 +934,18 @@ const run = async (
     inner,
     //pre(JSON.stringify({table, name:table.name}))+
     style(
-      css({ ncols, col_bg_color, col_text_color, col_width, col_width_units })
+      css({ ncols, col_bg_color, col_text_color, col_width, col_width_units }),
     ),
     !isLiveReload && script(domReady(initCode)),
     !isLiveReload && real_time_updates
       ? script({
-          src: `/static_assets/${db.connectObj.version_tag}/socket.io.min.js`,
+          src: `/static_assets/${db.connectObj.version_tag}/socket.io.min.js`, // TODO
         }) +
           script(
             { id: rndid },
-            domReady(realtTimeUpdater(view, rndid, initCode))
+            domReady(realtTimeUpdater(view, rndid, initCode)),
           )
-      : ""
+      : "",
   );
 };
 
@@ -957,7 +982,7 @@ const set_card_value = async (
   viewname,
   { column_field, position_field, swimlane_field },
   body,
-  { req }
+  { req },
 ) => {
   const table = await Table.findOne({ id: table_id });
   const role = req.isAuthenticated() ? req.user.role_id : public_user_role;
@@ -982,7 +1007,7 @@ const set_card_value = async (
       {
         [column_field_field.attributes.summary_field]: body[column_field],
       },
-      forUser
+      forUser,
     );
     colval = refrow.id;
   }
@@ -991,7 +1016,7 @@ const set_card_value = async (
     var newpos;
     const exrows = await table.getRows(
       { [column_field]: colval },
-      { orderBy: position_field, ...forUser }
+      { orderBy: position_field, ...forUser },
     );
     const before_id = body.before_id;
     if (before_id) {
@@ -1018,13 +1043,9 @@ const set_card_value = async (
     body.id,
     req.user || { role_id: public_user_role },
     false,
-    upres
+    upres,
   );
   const view = View.findOne({ name: viewname });
-  view.emitRealTimeEvent("DROP_EVENT", {
-    ...updRow,
-    id: body.id,
-  });
   return { json: { success: "ok", ...upres } };
 };
 
@@ -1041,6 +1062,7 @@ const set_col_order = async (table_id, viewname, config, body, { req }) => {
     configuration: { ...view.configuration, column_order: [...new Set(body)] },
   };
   await View.update(newConfig, view.id);
+  await getState().refresh_views(); // view update uses noSignal
   view.emitRealTimeEvent("CONFIG_EVENT", {});
   return { json: { success: "ok", newconfig: newConfig } };
 };
@@ -1091,6 +1113,7 @@ const virtual_triggers = (table_id, viewname, { real_time_updates }) => {
 module.exports = {
   name: "Kanban",
   display_state_form: false,
+  mobile_render_server_side: true,
   get_state_fields,
   configuration_workflow,
   run,
