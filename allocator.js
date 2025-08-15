@@ -3,6 +3,8 @@ const Table = require("@saltcorn/data/models/table");
 const Form = require("@saltcorn/data/models/form");
 const View = require("@saltcorn/data/models/view");
 const Workflow = require("@saltcorn/data/models/workflow");
+const FieldRepeat = require("@saltcorn/data/models/fieldrepeat");
+const Trigger = require("@saltcorn/data/models/trigger");
 const { jsexprToWhere } = require("@saltcorn/data/models/expression");
 
 const {
@@ -28,6 +30,7 @@ const {
 const {
   stateFieldsToWhere,
   readState,
+  runCollabEvents,
 } = require("@saltcorn/data/plugin-helper");
 const moment = require("moment");
 
@@ -65,7 +68,7 @@ const configuration_workflow = () =>
             (f) => (f.is_fkey && f.reftable_name) || f.type?.name === "Date"
           );
           const date_fields = fields.filter((f) => f.type?.name === "Date");
-
+          const triggers = Trigger.find();
           return new Form({
             fields: [
               { input_type: "section_header", label: "Item view" },
@@ -190,6 +193,23 @@ const configuration_workflow = () =>
                 sublabel: "Enable real-time updates for drag-and-drop events.",
                 default: true,
               },
+              new FieldRepeat({
+                name: "update_events",
+                showIf: { real_time_updates: true },
+                fields: [
+                  {
+                    type: "String",
+                    name: "event",
+                    label: req.__("Update event"),
+                    sublabel: req.__(
+                      "Custom event for real-time updates (only Api call condition)",
+                    ),
+                    attributes: {
+                      options: triggers.map((t) => t.name),
+                    },
+                  },
+                ],
+              }),
             ],
           });
         },
@@ -571,6 +591,13 @@ const run = async (
       realTimeView = result;
       ${initCode}
     }
+
+    if (data.actions) {
+      for (const action of data.actions) {
+        if (realTimeView) await common_done(action, realTimeView);
+        else await common_done(action, "${viewname}");
+      }
+    }
   };
 
   const collabCfg = {
@@ -654,16 +681,21 @@ const set_card_value = async (
 const virtual_triggers = (
   table_id,
   viewname,
-  { row_field, col_field, real_time_updates }
+  { row_field, col_field, real_time_updates, update_events }
 ) => {
   return real_time_updates
     ? [
         {
           when_trigger: "Insert",
           table_id: table_id,
-          run: (row) => {
+          run: async (row, extra) => {
             const view = View.findOne({ name: viewname });
             if (view) {
+              const actionResults = runCollabEvents
+                ? await runCollabEvents(update_events, extra?.user, {
+                    new_row: row,
+                  })
+                : [];
               view.emitRealTimeEvent("INSERT_EVENT", {
                 ...row,
               });
@@ -673,15 +705,22 @@ const virtual_triggers = (
         {
           when_trigger: "Update",
           table_id: table_id,
-          run: (row, { old_row }) => {
+          run: async (row, extra) => {
             if (
-              row[row_field] !== old_row[row_field] ||
-              row[col_field] !== old_row[col_field]
+              row[row_field] !== extra.old_row[row_field] ||
+              row[col_field] !== extra.old_row[col_field]
             ) {
               const view = View.findOne({ name: viewname });
               if (view) {
+                const actionResults = runCollabEvents
+                  ? await runCollabEvents(update_events, extra?.user, {
+                      new_row: row,
+                      old_row: extra.old_row,
+                    })
+                  : [];
                 view.emitRealTimeEvent("UPDATE_EVENT", {
-                  ...row,
+                  row: row,
+                  actions: actionResults,
                 });
               }
             }
@@ -690,11 +729,17 @@ const virtual_triggers = (
         {
           when_trigger: "Delete",
           table_id: table_id,
-          run: (row) => {
+          run: async (row, extra) => {
             const view = View.findOne({ name: viewname });
             if (view) {
+              const actionResults = runCollabEvents
+                ? await runCollabEvents(update_events, extra?.user, {
+                    new_row: row,
+                  })
+                : [];
               view.emitRealTimeEvent("DELETE_EVENT", {
-                ...row,
+                row: row,
+                actions: actionResults,
               });
             }
           },
