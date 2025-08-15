@@ -39,7 +39,7 @@ const db = require("@saltcorn/data/db");
 
 const public_user_role = features?.public_user_role || 10;
 
-const configuration_workflow = () =>
+const configuration_workflow = (req) =>
   new Workflow({
     steps: [
       {
@@ -537,6 +537,49 @@ const run = async (
     '[data-sc-embed-viewname="${view.name}"]'
   );
 
+  const isMobile = parent?.saltcorn?.data?.state !== undefined;
+
+  const viewLoader = async (url) => {
+    let response = null;
+    if (!isMobile) {
+      response = await fetch(url, {
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          "X-Saltcorn-Reload": "true",
+          localizedstate: "true", //no admin bar
+        },
+      });
+    }
+    else {
+      response = await parent.saltcorn.mobileApp.api.apiCall({
+        method: "GET",
+        path: url,
+        additionalHeaders: {
+          "X-Requested-With": "XMLHttpRequest",
+          "X-Saltcorn-Reload": "true", //no admin bar
+        },
+      });
+    }
+    if (response.status === 200) {
+      const template = document.createElement("template");
+      template.innerHTML = !isMobile ? await response.text() : response.data;
+      // find a div with an attribute "data-sc-embed-viewname"
+      let result = Array.from(template.content.children).find(
+        (child) =>
+          child.getAttribute("data-sc-embed-viewname") === "${view.name}" ||
+          child.querySelector("[data-sc-embed-viewname='${view.name}']")
+      );
+      if (result && !result.getAttribute("data-sc-embed-viewname"))
+        result = result.querySelector("[data-sc-embed-viewname]");
+      return result;
+    } else {
+      console.error(
+        \`Failed to fetch view from \${url}: \${response.status} \${response.statusText}\`
+      );
+      return null;
+    }
+  };
+
   const updateKanbanView = async (viewElement) => {
     const urlAttr = (elem) =>
       elem?.getAttribute("data-sc-local-state") ||
@@ -554,31 +597,13 @@ const run = async (
         return null;
       }
     }
-    const response = await fetch(url, {
-      headers: {
-        "X-Requested-With": "XMLHttpRequest",
-        "X-Saltcorn-Reload": "true",
-        localizedstate: "true", //no admin bar
-      },
-    });
-    if (response.status === 200) {
-      const template = document.createElement("template");
-      template.innerHTML = await response.text();
-      let newViewElement = template.content.children[1];
-      if (!newViewElement.getAttribute("data-sc-embed-viewname"))
-        newViewElement = newViewElement.querySelector("[data-sc-embed-viewname]");
-      if (!newViewElement) {
-        console.error("No data-sc-embed-viewname found in the new view element.");
-        return null;
-      }
-      safeElement.replaceWith(newViewElement);
-      return newViewElement;
-    } else {
-      console.error(
-        \`Failed to fetch view from \${url}: \${response.status} \${response.statusText}\`
-      );
+    const newViewElement = await viewLoader(url);
+    if (!newViewElement) {
+      console.error("No data-sc-embed-viewname found in the new view element.");
       return null;
     }
+    safeElement.replaceWith(newViewElement);
+    return newViewElement;
   };
 
   const handleRealTimeEvent = async (data) => {

@@ -509,11 +509,14 @@ const realtTimeUpdater = (view, rndid, initCode, viewname) => `
       const template = document.createElement("template");
       template.innerHTML = !isMobile ? await response.text() : response.data;
       // find a div with an attribute "data-sc-embed-viewname"
-      return Array.from(template.content.children).find(
+      let result = Array.from(template.content.children).find(
         (child) =>
           child.getAttribute("data-sc-embed-viewname") === "${view.name}" ||
-          child.querySelector("[data-sc-embed-viewname]")
+          child.querySelector("[data-sc-embed-viewname='${view.name}']")
       );
+      if (result && !result.getAttribute("data-sc-embed-viewname"))
+        result = result.querySelector("[data-sc-embed-viewname]");
+      return result;
     } else {
       console.error(
         \`Failed to fetch view from \${url}: \${response.status} \${response.statusText}\`
@@ -540,9 +543,7 @@ const realtTimeUpdater = (view, rndid, initCode, viewname) => `
       }
     }
 
-    let newViewElement = await viewLoader(url); 
-    if (!newViewElement.getAttribute("data-sc-embed-viewname"))
-      newViewElement = newViewElement.querySelector("[data-sc-embed-viewname]");
+    let newViewElement = await viewLoader(url);
     if (!newViewElement) {
       console.error("No data-sc-embed-viewname found in the new view element.");
       return null;
