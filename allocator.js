@@ -3,6 +3,8 @@ const Table = require("@saltcorn/data/models/table");
 const Form = require("@saltcorn/data/models/form");
 const View = require("@saltcorn/data/models/view");
 const Workflow = require("@saltcorn/data/models/workflow");
+const FieldRepeat = require("@saltcorn/data/models/fieldrepeat");
+const Trigger = require("@saltcorn/data/models/trigger");
 const { jsexprToWhere } = require("@saltcorn/data/models/expression");
 
 const {
@@ -28,6 +30,7 @@ const {
 const {
   stateFieldsToWhere,
   readState,
+  runCollabEvents,
 } = require("@saltcorn/data/plugin-helper");
 const moment = require("moment");
 
@@ -36,7 +39,7 @@ const db = require("@saltcorn/data/db");
 
 const public_user_role = features?.public_user_role || 10;
 
-const configuration_workflow = () =>
+const configuration_workflow = (req) =>
   new Workflow({
     steps: [
       {
@@ -65,7 +68,7 @@ const configuration_workflow = () =>
             (f) => (f.is_fkey && f.reftable_name) || f.type?.name === "Date"
           );
           const date_fields = fields.filter((f) => f.type?.name === "Date");
-
+          const triggers = Trigger.find();
           return new Form({
             fields: [
               { input_type: "section_header", label: "Item view" },
@@ -190,6 +193,23 @@ const configuration_workflow = () =>
                 sublabel: "Enable real-time updates for drag-and-drop events.",
                 default: true,
               },
+              new FieldRepeat({
+                name: "update_events",
+                showIf: { real_time_updates: true },
+                fields: [
+                  {
+                    type: "String",
+                    name: "event",
+                    label: req.__("Update event"),
+                    sublabel: req.__(
+                      "Custom event for real-time updates",
+                    ),
+                    attributes: {
+                      options: triggers.map((t) => t.name),
+                    },
+                  },
+                ],
+              }),
             ],
           });
         },
@@ -517,6 +537,49 @@ const run = async (
     '[data-sc-embed-viewname="${view.name}"]'
   );
 
+  const isMobile = parent?.saltcorn?.data?.state !== undefined;
+
+  const viewLoader = async (url) => {
+    let response = null;
+    if (!isMobile) {
+      response = await fetch(url, {
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          "X-Saltcorn-Reload": "true",
+          localizedstate: "true", //no admin bar
+        },
+      });
+    }
+    else {
+      response = await parent.saltcorn.mobileApp.api.apiCall({
+        method: "GET",
+        path: url,
+        additionalHeaders: {
+          "X-Requested-With": "XMLHttpRequest",
+          "X-Saltcorn-Reload": "true", //no admin bar
+        },
+      });
+    }
+    if (response.status === 200) {
+      const template = document.createElement("template");
+      template.innerHTML = !isMobile ? await response.text() : response.data;
+      // find a div with an attribute "data-sc-embed-viewname"
+      let result = Array.from(template.content.children).find(
+        (child) =>
+          child.getAttribute("data-sc-embed-viewname") === "${view.name}" ||
+          child.querySelector("[data-sc-embed-viewname='${view.name}']")
+      );
+      if (result && !result.getAttribute("data-sc-embed-viewname"))
+        result = result.querySelector("[data-sc-embed-viewname]");
+      return result;
+    } else {
+      console.error(
+        \`Failed to fetch view from \${url}: \${response.status} \${response.statusText}\`
+      );
+      return null;
+    }
+  };
+
   const updateKanbanView = async (viewElement) => {
     const urlAttr = (elem) =>
       elem?.getAttribute("data-sc-local-state") ||
@@ -534,31 +597,13 @@ const run = async (
         return null;
       }
     }
-    const response = await fetch(url, {
-      headers: {
-        "X-Requested-With": "XMLHttpRequest",
-        "X-Saltcorn-Reload": "true",
-        localizedstate: "true", //no admin bar
-      },
-    });
-    if (response.status === 200) {
-      const template = document.createElement("template");
-      template.innerHTML = await response.text();
-      let newViewElement = template.content.children[1];
-      if (!newViewElement.getAttribute("data-sc-embed-viewname"))
-        newViewElement = newViewElement.querySelector("[data-sc-embed-viewname]");
-      if (!newViewElement) {
-        console.error("No data-sc-embed-viewname found in the new view element.");
-        return null;
-      }
-      safeElement.replaceWith(newViewElement);
-      return newViewElement;
-    } else {
-      console.error(
-        \`Failed to fetch view from \${url}: \${response.status} \${response.statusText}\`
-      );
+    const newViewElement = await viewLoader(url);
+    if (!newViewElement) {
+      console.error("No data-sc-embed-viewname found in the new view element.");
       return null;
     }
+    safeElement.replaceWith(newViewElement);
+    return newViewElement;
   };
 
   const handleRealTimeEvent = async (data) => {
@@ -570,6 +615,13 @@ const run = async (
     if (result) {
       realTimeView = result;
       ${initCode}
+    }
+
+    if (data.actions) {
+      for (const action of data.actions) {
+        if (realTimeView) await common_done(action, realTimeView);
+        else await common_done(action, "${viewname}");
+      }
     }
   };
 
@@ -654,16 +706,21 @@ const set_card_value = async (
 const virtual_triggers = (
   table_id,
   viewname,
-  { row_field, col_field, real_time_updates }
+  { row_field, col_field, real_time_updates, update_events }
 ) => {
   return real_time_updates
     ? [
         {
           when_trigger: "Insert",
           table_id: table_id,
-          run: (row) => {
+          run: async (row, extra) => {
             const view = View.findOne({ name: viewname });
             if (view) {
+              const actionResults = runCollabEvents
+                ? await runCollabEvents(update_events, extra?.user, {
+                    new_row: row,
+                  })
+                : [];
               view.emitRealTimeEvent("INSERT_EVENT", {
                 ...row,
               });
@@ -673,15 +730,22 @@ const virtual_triggers = (
         {
           when_trigger: "Update",
           table_id: table_id,
-          run: (row, { old_row }) => {
+          run: async (row, extra) => {
             if (
-              row[row_field] !== old_row[row_field] ||
-              row[col_field] !== old_row[col_field]
+              row[row_field] !== extra.old_row[row_field] ||
+              row[col_field] !== extra.old_row[col_field]
             ) {
               const view = View.findOne({ name: viewname });
               if (view) {
+                const actionResults = runCollabEvents
+                  ? await runCollabEvents(update_events, extra?.user, {
+                      new_row: row,
+                      old_row: extra.old_row,
+                    })
+                  : [];
                 view.emitRealTimeEvent("UPDATE_EVENT", {
-                  ...row,
+                  row: row,
+                  actions: actionResults,
                 });
               }
             }
@@ -690,11 +754,17 @@ const virtual_triggers = (
         {
           when_trigger: "Delete",
           table_id: table_id,
-          run: (row) => {
+          run: async (row, extra) => {
             const view = View.findOne({ name: viewname });
             if (view) {
+              const actionResults = runCollabEvents
+                ? await runCollabEvents(update_events, extra?.user, {
+                    new_row: row,
+                  })
+                : [];
               view.emitRealTimeEvent("DELETE_EVENT", {
-                ...row,
+                row: row,
+                actions: actionResults,
               });
             }
           },

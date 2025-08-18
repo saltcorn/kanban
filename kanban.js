@@ -2,6 +2,8 @@ const Field = require("@saltcorn/data/models/field");
 const Table = require("@saltcorn/data/models/table");
 const Form = require("@saltcorn/data/models/form");
 const View = require("@saltcorn/data/models/view");
+const FieldRepeat = require("@saltcorn/data/models/fieldrepeat");
+const Trigger = require("@saltcorn/data/models/trigger");
 const { jsexprToWhere } = require("@saltcorn/data/models/expression");
 const Workflow = require("@saltcorn/data/models/workflow");
 const { isWeb } = require("@saltcorn/data/utils");
@@ -23,6 +25,7 @@ const {
 const {
   stateFieldsToWhere,
   readState,
+  runCollabEvents,
 } = require("@saltcorn/data/plugin-helper");
 
 const db = require("@saltcorn/data/db");
@@ -31,7 +34,7 @@ const { getState } = require("@saltcorn/data/db/state");
 const { features } = require("@saltcorn/data/db/state");
 const public_user_role = features?.public_user_role || 10;
 
-const configuration_workflow = () =>
+const configuration_workflow = (req) =>
   new Workflow({
     steps: [
       {
@@ -89,6 +92,7 @@ const configuration_workflow = () =>
               }
             }
           }
+          const triggers = Trigger.find();
           return new Form({
             fields: [
               {
@@ -279,6 +283,23 @@ const configuration_workflow = () =>
                 default: true,
                 showIf: { disable_card_movement: false },
               },
+              new FieldRepeat({
+                name: "update_events",
+                showIf: { real_time_updates: true },
+                fields: [
+                  {
+                    type: "String",
+                    name: "event",
+                    label: req.__("Update event"),
+                    sublabel: req.__(
+                      "Custom event for real-time updates",
+                    ),
+                    attributes: {
+                      options: triggers.map((t) => t.name),
+                    },
+                  },
+                ],
+              }),
             ],
           });
         },
@@ -455,7 +476,7 @@ const js = (
   })`
   }`;
 
-const realtTimeUpdater = (view, rndid, initCode) => `
+const realtTimeUpdater = (view, rndid, initCode, viewname) => `
   const currentScript = document.getElementById('${rndid}');
   let realTimeView = currentScript?.closest(
     '[data-sc-embed-viewname="${view.name}"]'
@@ -487,7 +508,15 @@ const realtTimeUpdater = (view, rndid, initCode) => `
     if (response.status === 200) {
       const template = document.createElement("template");
       template.innerHTML = !isMobile ? await response.text() : response.data;
-      return template.content.children[0];
+      // find a div with an attribute "data-sc-embed-viewname"
+      let result = Array.from(template.content.children).find(
+        (child) =>
+          child.getAttribute("data-sc-embed-viewname") === "${view.name}" ||
+          child.querySelector("[data-sc-embed-viewname='${view.name}']")
+      );
+      if (result && !result.getAttribute("data-sc-embed-viewname"))
+        result = result.querySelector("[data-sc-embed-viewname]");
+      return result;
     } else {
       console.error(
         \`Failed to fetch view from \${url}: \${response.status} \${response.statusText}\`
@@ -514,9 +543,7 @@ const realtTimeUpdater = (view, rndid, initCode) => `
       }
     }
 
-    let newViewElement = await viewLoader(url); 
-    if (!newViewElement.getAttribute("data-sc-embed-viewname"))
-      newViewElement = newViewElement.querySelector("[data-sc-embed-viewname]");
+    let newViewElement = await viewLoader(url);
     if (!newViewElement) {
       console.error("No data-sc-embed-viewname found in the new view element.");
       return null;
@@ -534,6 +561,13 @@ const realtTimeUpdater = (view, rndid, initCode) => `
     if (result) {
       realTimeView = result;
       ${initCode}
+    }
+
+    if (data.actions) {
+      for (const action of data.actions) {
+        if (realTimeView) await common_done(action, realTimeView);
+        else await common_done(action, "${viewname}");
+      }
     }
   };
 
@@ -943,7 +977,7 @@ const run = async (
         }) +
           script(
             { id: rndid },
-            domReady(realtTimeUpdater(view, rndid, initCode)),
+            domReady(realtTimeUpdater(view, rndid, initCode, viewname)),
           )
       : "",
   );
@@ -1067,17 +1101,27 @@ const set_col_order = async (table_id, viewname, config, body, { req }) => {
   return { json: { success: "ok", newconfig: newConfig } };
 };
 
-const virtual_triggers = (table_id, viewname, { real_time_updates }) => {
+const virtual_triggers = (
+  table_id,
+  viewname,
+  { real_time_updates, update_events },
+) => {
   return real_time_updates
     ? [
         {
           when_trigger: "Insert",
           table_id: table_id,
-          run: (row) => {
+          run: async (row, extra) => {
             const view = View.findOne({ name: viewname });
             if (view) {
+              const actionResults = runCollabEvents
+                ? await runCollabEvents(update_events, extra?.user, {
+                    new_row: row,
+                  })
+                : [];
               view.emitRealTimeEvent("INSERT_EVENT", {
-                ...row,
+                row: row,
+                actions: actionResults,
               });
             }
           },
@@ -1085,11 +1129,18 @@ const virtual_triggers = (table_id, viewname, { real_time_updates }) => {
         {
           when_trigger: "Update",
           table_id: table_id,
-          run: (row) => {
+          run: async (row, extra) => {
             const view = View.findOne({ name: viewname });
             if (view) {
+              const actionResults = runCollabEvents
+                ? await runCollabEvents(update_events, extra?.user, {
+                    new_row: row,
+                    old_row: extra.old_row,
+                  })
+                : [];
               view.emitRealTimeEvent("UPDATE_EVENT", {
-                ...row,
+                row: row,
+                actions: actionResults,
               });
             }
           },
@@ -1097,11 +1148,17 @@ const virtual_triggers = (table_id, viewname, { real_time_updates }) => {
         {
           when_trigger: "Delete",
           table_id: table_id,
-          run: (row) => {
+          run: async (row, extra) => {
             const view = View.findOne({ name: viewname });
             if (view) {
+              const actionResults = runCollabEvents
+                ? await runCollabEvents(update_events, extra?.user, {
+                    new_row: row,
+                  })
+                : [];
               view.emitRealTimeEvent("DELETE_EVENT", {
-                ...row,
+                row: row,
+                actions: actionResults,
               });
             }
           },
