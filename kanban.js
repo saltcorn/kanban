@@ -109,6 +109,13 @@ const configuration_workflow = (req) =>
                 },
               },
               {
+                name: "no_card_wrap",
+                label: "No card wrapper",
+                type: "Bool",
+                sublabel:
+                  "Show the card view as-is, without adding Bootstrap card styling around it. Use this if you want to fully control the card appearance in your show view.",
+              },
+              {
                 name: "expand_view",
                 label: "Expand View",
                 type: "String",
@@ -390,6 +397,10 @@ const css = ({
     display: block;
     box-shadow: 0px 10px 20px rgba(58, 79, 115, 0.04), 0px 2px 6px rgba(58, 79, 115, 0.08), 0px 0px 1px rgba(58, 79, 115, 0.04);
   }
+  .kancard-nowrap {
+    display: block;
+    margin: 2px 2px 6px;
+  }
   .kancard-empty-placeholder { 
     display:none
   }
@@ -448,7 +459,7 @@ const js = (
   var els=document.querySelectorAll('.kanboard')
   dragula(Array.from(els), {
     moves: function(el, container, handle) {
-      return $(handle).closest('.kancard').length==0;
+       return $(handle).closest('.kancard, .kancard-nowrap').length==0;
     }
   }).on('drop', function () {
     setTimeout(reportColumnValues, 0)
@@ -626,6 +637,7 @@ const run = async (
     create_label,
     disable_card_movement,
     real_time_updates,
+    no_card_wrap,
   },
   state,
   extraArgs,
@@ -766,7 +778,7 @@ const run = async (
               return (
                 div(
                   {
-                    class: "kancard card",
+                    class: no_card_wrap ? "kancard-nowrap" : "kancard card",
                     "data-id": text(row.id),
                     ...(expand_view && {
                       onClick: `ajax_modal('/view/${expand_view}?id=${row.id}')`, // TODO
